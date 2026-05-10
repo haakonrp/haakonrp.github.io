@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deck Builder | Balcony Planner</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@jscad/modeling"></script>
+    <script src="https://unpkg.com/@jscad/regl-renderer"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Outfit', 'sans-serif'],
+                    },
+                    colors: {
+                        wood: {
+                            400: '#C78C56',
+                            500: '#A66B32',
+                            600: '#8A5322',
+                            700: '#693C13',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #1a1a1a;
+            color: #f3f4f6;
+        }
+
+        #viewer {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            cursor: grab;
+            touch-action: none;
+            z-index: 1;
+        }
+
+        #viewer canvas {
+            width: 100% !important;
+            height: 100% !important;
+            display: block;
+            touch-action: none;
+        }
+
+        #viewer:active {
+            cursor: grabbing;
+        }
+
+        .viewer-overlay {
+            pointer-events: none;
+            z-index: 2;
+        }
+        
+        /* Custom ranges */
+        input[type=range] {
+            accent-color: #C78C56;
+        }
+
+        input[id$="-number"] {
+            background: rgba(28, 25, 23, 0.85);
+            border: 1px solid rgb(68, 64, 60);
+            border-radius: 0.5rem;
+            color: #f8fafc;
+            padding: 0.35rem 0.5rem;
+            width: 6rem;
+        }
+
+        input[id$="-number"]:focus {
+            border-color: #C78C56;
+            outline: 2px solid rgba(199, 140, 86, 0.2);
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8 flex flex-col">
+
+    <header class="mb-8 max-w-7xl mx-auto w-full flex items-center justify-between">
+        <div>
+            <a href="/" class="text-stone-400 hover:text-white transition-colors text-sm font-medium flex items-center gap-2 mb-2">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                Back to Home
+            </a>
+            <h1 class="text-3xl font-bold tracking-tight text-white">Deck Builder</h1>
+            <p class="text-stone-400 mt-1">Plan your balcony flooring</p>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1">
+        
+        <!-- Controls Panel -->
+        <div class="lg:col-span-4 space-y-8 bg-stone-900/50 p-6 rounded-2xl border border-stone-800 backdrop-blur-sm h-fit">
+            
+            <div class="space-y-6">
+                <h2 class="text-xl font-semibold border-b border-stone-800 pb-2">Dimensions</h2>
+                
+                <!-- Balcony Width -->
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between gap-4">
+                        <label for="width" class="text-sm font-medium text-stone-300">Balcony Width</label>
+                        <div class="flex items-center gap-2 text-sm font-mono text-wood-400">
+                            <input type="text" inputmode="decimal" id="width-number" min="0.6" max="12" step="0.01" value="4.00" aria-label="Balcony width in meters">
+                            <span>m</span>
+                        </div>
+                    </div>
+                    <input type="range" id="width" min="0.6" max="12.0" step="0.01" value="4.0" class="w-full">
+                    <p class="text-xs text-stone-500">Range: 0.6–12 m. Type exact values if needed.</p>
+                </div>
+
+                <!-- Balcony Depth -->
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between gap-4">
+                        <label for="depth" class="text-sm font-medium text-stone-300">Balcony Depth / Height</label>
+                        <div class="flex items-center gap-2 text-sm font-mono text-wood-400">
+                            <input type="text" inputmode="decimal" id="depth-number" min="0.2" max="6" step="0.01" value="2.00" aria-label="Balcony depth in meters">
+                            <span>m</span>
+                        </div>
+                    </div>
+                    <input type="range" id="depth" min="0.2" max="6.0" step="0.01" value="2.0" class="w-full">
+                    <p class="text-xs text-stone-500">Range: 0.2–6 m for balconies/decks.</p>
+                </div>
+            </div>
+
+            <div class="space-y-6">
+                <h2 class="text-xl font-semibold border-b border-stone-800 pb-2">Decking</h2>
+                
+                <!-- Plank Width -->
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between gap-4">
+                        <label for="plank-width" class="text-sm font-medium text-stone-300">Plank Width</label>
+                        <div class="flex items-center gap-2 text-sm font-mono text-wood-400">
+                            <input type="text" inputmode="numeric" id="plank-width-number" min="70" max="200" step="1" value="120" aria-label="Plank width in millimeters">
+                            <span>mm</span>
+                        </div>
+                    </div>
+                    <input type="range" id="plank-width" min="70" max="200" step="1" value="120" class="w-full">
+                    <p class="text-xs text-stone-500">Range: 70–200 mm. Common decking boards are roughly 95–145 mm.</p>
+                </div>
+
+                <!-- Plank Gap -->
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between gap-4">
+                        <label for="gap" class="text-sm font-medium text-stone-300">Gap Between Planks</label>
+                        <div class="flex items-center gap-2 text-sm font-mono text-wood-400">
+                            <input type="text" inputmode="numeric" id="gap-number" min="0" max="12" step="1" value="5" aria-label="Gap between planks in millimeters">
+                            <span>mm</span>
+                        </div>
+                    </div>
+                    <input type="range" id="gap" min="0" max="12" step="1" value="5" class="w-full">
+                    <p class="text-xs text-stone-500">Range: 0–12 mm. 3–6 mm is common; follow your board supplier’s guidance.</p>
+                </div>
+
+                <!-- Direction -->
+                <div class="space-y-3">
+                    <label class="text-sm font-medium text-stone-300">Plank Direction</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button id="dir-width" type="button" aria-pressed="true" class="dir-btn py-2 px-4 rounded-lg border border-wood-500 bg-wood-500/20 text-wood-400 text-sm font-medium transition-all">Along Width</button>
+                        <button id="dir-depth" type="button" aria-pressed="false" class="dir-btn py-2 px-4 rounded-lg border border-stone-700 bg-stone-800 text-stone-400 text-sm font-medium transition-all hover:bg-stone-700">Along Depth</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-6">
+                <h2 class="text-xl font-semibold border-b border-stone-800 pb-2">Under-frame</h2>
+
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between gap-4">
+                        <label for="joist-spacing" class="text-sm font-medium text-stone-300">Joist Spacing</label>
+                        <div class="flex items-center gap-2 text-sm font-mono text-wood-400">
+                            <input type="text" inputmode="numeric" id="joist-spacing-number" min="250" max="600" step="10" value="400" aria-label="Joist spacing in millimeters">
+                            <span>mm</span>
+                        </div>
+                    </div>
+                    <input type="range" id="joist-spacing" min="250" max="600" step="10" value="400" class="w-full">
+                    <p class="text-xs text-stone-500">Range: 250–600 mm. 300–450 mm is typical; check your board span rating.</p>
+                </div>
+
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between gap-4">
+                        <label for="joist-inset" class="text-sm font-medium text-stone-300">Joist Width Inset</label>
+                        <div class="flex items-center gap-2 text-sm font-mono text-wood-400">
+                            <input type="text" inputmode="numeric" id="joist-inset-number" min="0" max="100" step="1" value="20" aria-label="Joist inset from balcony width edges in millimeters">
+                            <span>mm</span>
+                        </div>
+                    </div>
+                    <input type="range" id="joist-inset" min="0" max="100" step="1" value="20" class="w-full">
+                    <p class="text-xs text-stone-500">Moves joists in from the left/right width edges only. Default: 20 mm.</p>
+                </div>
+
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between gap-4">
+                        <label for="joist-width" class="text-sm font-medium text-stone-300">Joist Width</label>
+                        <div class="flex items-center gap-2 text-sm font-mono text-wood-400">
+                            <input type="text" inputmode="numeric" id="joist-width-number" min="36" max="98" step="1" value="48" aria-label="Joist width in millimeters">
+                            <span>mm</span>
+                        </div>
+                    </div>
+                    <input type="range" id="joist-width" min="36" max="98" step="1" value="48" class="w-full">
+                </div>
+
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between gap-4">
+                        <label for="joist-height" class="text-sm font-medium text-stone-300">Joist Height</label>
+                        <div class="flex items-center gap-2 text-sm font-mono text-wood-400">
+                            <input type="text" inputmode="numeric" id="joist-height-number" min="30" max="148" step="1" value="48" aria-label="Joist height in millimeters">
+                            <span>mm</span>
+                        </div>
+                    </div>
+                    <input type="range" id="joist-height" min="30" max="148" step="1" value="48" class="w-full">
+                </div>
+
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between gap-4">
+                        <label for="screws-per-crossing" class="text-sm font-medium text-stone-300">Screws per Plank/Joist</label>
+                        <div class="flex items-center gap-2 text-sm font-mono text-wood-400">
+                            <input type="text" inputmode="numeric" id="screws-per-crossing-number" min="1" max="4" step="1" value="2" aria-label="Screws per plank and joist crossing">
+                            <span>pcs</span>
+                        </div>
+                    </div>
+                    <input type="range" id="screws-per-crossing" min="1" max="4" step="1" value="2" class="w-full">
+                    <p class="text-xs text-stone-500">2 screws per crossing is a common decking assumption.</p>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Visualization & Results -->
+        <div class="lg:col-span-8 flex flex-col gap-6">
+            
+            <!-- 3D View -->
+            <div class="bg-stone-900/30 rounded-2xl border border-stone-800 h-[500px] overflow-hidden relative group">
+                <div id="viewer" aria-label="Interactive 3D deck preview"></div>
+                <div class="viewer-overlay absolute bottom-4 right-4 text-xs font-mono text-stone-500 uppercase tracking-widest text-right">
+                    Drag orbit • Right/Shift-drag pan • Scroll zoom
+                </div>
+                <div class="viewer-overlay absolute bottom-4 left-4 text-xs text-stone-500 max-w-xs">
+                    Final edge plank may be cut narrower to fit the balcony exactly.
+                </div>
+                <div class="viewer-overlay absolute top-4 left-4 rounded-xl border border-stone-700 bg-stone-950/75 p-3 text-xs text-stone-300 shadow-lg backdrop-blur">
+                    <div class="font-semibold text-white mb-2">Scene scale</div>
+                    <div class="flex items-center gap-2"><span class="inline-block h-2 w-5 rounded bg-sky-400"></span>Width: <span id="viewer-width-label" class="font-mono text-sky-300">4.0 m</span></div>
+                    <div class="flex items-center gap-2 mt-1"><span class="inline-block h-2 w-5 rounded bg-emerald-400"></span>Depth: <span id="viewer-depth-label" class="font-mono text-emerald-300">2.0 m</span></div>
+                    <div class="mt-1 text-stone-500">Grid spacing: 0.5 m</div>
+                </div>
+            </div>
+
+            <!-- Results Panel -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="bg-stone-900/50 p-4 rounded-xl border border-stone-800">
+                    <div class="text-stone-400 text-xs uppercase tracking-wider mb-1">Total Planks</div>
+                    <div class="text-3xl font-light text-white" id="res-count">0</div>
+                </div>
+                <div class="bg-stone-900/50 p-4 rounded-xl border border-stone-800">
+                    <div class="text-stone-400 text-xs uppercase tracking-wider mb-1">Total Linear</div>
+                    <div class="text-3xl font-light text-white flex items-baseline gap-1">
+                        <span id="res-linear">0.0</span>
+                        <span class="text-sm text-stone-500">m</span>
+                    </div>
+                </div>
+                <div class="bg-stone-900/50 p-4 rounded-xl border border-stone-800">
+                    <div class="text-stone-400 text-xs uppercase tracking-wider mb-1">Est. Cuts</div>
+                    <div class="text-3xl font-light text-white" id="res-cuts">0</div>
+                </div>
+                <div class="bg-stone-900/50 p-4 rounded-xl border border-stone-800">
+                    <div class="text-stone-400 text-xs uppercase tracking-wider mb-1">Total Area</div>
+                    <div class="text-3xl font-light text-white flex items-baseline gap-1">
+                        <span id="res-area">0.0</span>
+                        <span class="text-sm text-stone-500">m²</span>
+                    </div>
+                </div>
+            </div>
+
+            <section class="bg-stone-900/50 p-5 rounded-2xl border border-stone-800">
+                <div class="flex items-start justify-between gap-4 mb-4">
+                    <div>
+                        <h2 class="text-xl font-semibold text-white">Shopping List</h2>
+                        <p class="text-sm text-stone-400 mt-1">Estimated materials. Add waste/extra boards before ordering.</p>
+                    </div>
+                    <div class="flex flex-col items-end gap-2 text-right">
+                        <div class="text-xs text-stone-500">Assumes joists run perpendicular to deck planks.</div>
+                        <button id="copy-shopping-list" type="button" class="rounded-lg border border-wood-500/60 bg-wood-500/15 px-3 py-1.5 text-xs font-medium text-wood-400 transition-colors hover:bg-wood-500/25">
+                            Copy list
+                        </button>
+                        <div id="copy-shopping-status" class="min-h-4 text-xs text-emerald-400" aria-live="polite"></div>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="text-left text-stone-400 border-b border-stone-800">
+                            <tr>
+                                <th class="py-2 pr-3 font-medium">Item</th>
+                                <th class="py-2 pr-3 font-medium">Value / Qty</th>
+                                <th class="py-2 pr-3 font-medium">Details</th>
+                                <th class="py-2 pr-3 font-medium">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="shopping-list" class="divide-y divide-stone-800 text-stone-200"></tbody>
+                    </table>
+                </div>
+            </section>
+
+        </div>
+
+    </main>
+
+    <script>
+        // State
+        const STORAGE_KEY = 'deck-builder-settings-v1';
+        const state = {
+            width: 4.0,       // m
+            depth: 2.0,       // m
+            plankWidth: 120,  // mm
+            gap: 5,           // mm
+            joistSpacing: 400, // mm
+            joistInset: 20,    // mm
+            joistWidth: 48,    // mm
+            joistHeight: 48,   // mm
+            screwsPerCrossing: 2,
+            direction: 'width' // 'width' or 'depth'
+        };
+
+        loadSavedState();
+
+        const plankThickness = 0.028; // m, visual approximation only
+        const jscad = {
+            ready: Boolean(window.jscadModeling && window.jscadReglRenderer),
+            renderer: null,
+            camera: null,
+            controls: null,
+            entities: [],
+            pointer: null,
+            lastRender: 0,
+        };
+
+        // DOM Elements
+        const els = {
+            inputs: {
+                width: document.getElementById('width'),
+                depth: document.getElementById('depth'),
+                plankWidth: document.getElementById('plank-width'),
+                gap: document.getElementById('gap'),
+                joistSpacing: document.getElementById('joist-spacing'),
+                joistInset: document.getElementById('joist-inset'),
+                joistWidth: document.getElementById('joist-width'),
+                joistHeight: document.getElementById('joist-height'),
+                screwsPerCrossing: document.getElementById('screws-per-crossing'),
+            },
+            numbers: {
+                width: document.getElementById('width-number'),
+                depth: document.getElementById('depth-number'),
+                plankWidth: document.getElementById('plank-width-number'),
+                gap: document.getElementById('gap-number'),
+                joistSpacing: document.getElementById('joist-spacing-number'),
+                joistInset: document.getElementById('joist-inset-number'),
+                joistWidth: document.getElementById('joist-width-number'),
+                joistHeight: document.getElementById('joist-height-number'),
+                screwsPerCrossing: document.getElementById('screws-per-crossing-number'),
+            },
+            btns: {
+                width: document.getElementById('dir-width'),
+                depth: document.getElementById('dir-depth'),
+            },
+            viewer: document.getElementById('viewer'),
+            res: {
+                count: document.getElementById('res-count'),
+                linear: document.getElementById('res-linear'),
+                cuts: document.getElementById('res-cuts'),
+                area: document.getElementById('res-area'),
+            },
+            shoppingList: document.getElementById('shopping-list'),
+            copyShoppingList: document.getElementById('copy-shopping-list'),
+            copyShoppingStatus: document.getElementById('copy-shopping-status'),
+            viewerWidthLabel: document.getElementById('viewer-width-label'),
+            viewerDepthLabel: document.getElementById('viewer-depth-label'),
+        };
+
+        let shoppingListText = '';
+
+        // Event Listeners
+        Object.keys(els.inputs).forEach(key => {
+            els.inputs[key].addEventListener('input', (e) => {
+                setMeasurement(key, e.target.value, 'range');
+            });
+
+            els.numbers[key].addEventListener('input', (e) => {
+                setMeasurement(key, e.target.value, 'number');
+            });
+
+            els.numbers[key].addEventListener('blur', () => {
+                syncControls(key);
+                update();
+            });
+        });
+
+        els.btns.width.addEventListener('click', () => setDirection('width'));
+        els.btns.depth.addEventListener('click', () => setDirection('depth'));
+        els.copyShoppingList.addEventListener('click', copyShoppingList);
+
+        function setDirection(dir) {
+            state.direction = dir;
+            
+            // Update buttons
+            const activeClass = ['border-wood-500', 'bg-wood-500/20', 'text-wood-400'];
+            const inactiveClass = ['border-stone-700', 'bg-stone-800', 'text-stone-400', 'hover:bg-stone-700'];
+            
+            if (dir === 'width') {
+                els.btns.width.setAttribute('aria-pressed', 'true');
+                els.btns.depth.setAttribute('aria-pressed', 'false');
+                els.btns.width.classList.add(...activeClass);
+                els.btns.width.classList.remove(...inactiveClass);
+                els.btns.depth.classList.add(...inactiveClass);
+                els.btns.depth.classList.remove(...activeClass);
+                
+            } else {
+                els.btns.depth.setAttribute('aria-pressed', 'true');
+                els.btns.width.setAttribute('aria-pressed', 'false');
+                els.btns.depth.classList.add(...activeClass);
+                els.btns.depth.classList.remove(...inactiveClass);
+                els.btns.width.classList.add(...inactiveClass);
+                els.btns.width.classList.remove(...activeClass);
+                
+            }
+
+            saveState();
+            update();
+        }
+
+        function setMeasurement(key, rawValue, source) {
+            const value = parseLocaleNumber(rawValue);
+            if (Number.isNaN(value)) return;
+
+            const min = parseFloat(els.numbers[key].min);
+            const max = parseFloat(els.numbers[key].max);
+            state[key] = Math.min(max, Math.max(min, value));
+
+            if (source !== 'range') els.inputs[key].value = state[key];
+            if (source !== 'number') syncNumber(key);
+            saveState();
+            update();
+        }
+
+        function loadSavedState() {
+            try {
+                const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+                Object.keys(state).forEach(key => {
+                    if (!(key in saved)) return;
+                    if (key === 'direction') {
+                        if (saved[key] === 'width' || saved[key] === 'depth') state[key] = saved[key];
+                        return;
+                    }
+                    const value = Number(saved[key]);
+                    if (Number.isFinite(value)) state[key] = value;
+                });
+            } catch (error) {
+                console.warn('Could not load saved deck builder settings', error);
+            }
+        }
+
+        function saveState() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+            } catch (error) {
+                console.warn('Could not save deck builder settings', error);
+            }
+        }
+
+        function parseLocaleNumber(rawValue) {
+            return parseFloat(String(rawValue).trim().replace(',', '.'));
+        }
+
+        function syncNumber(key) {
+            els.numbers[key].value = state[key].toFixed(key === 'width' || key === 'depth' ? 2 : 0);
+        }
+
+        function syncControls(key) {
+            els.inputs[key].value = state[key];
+            syncNumber(key);
+        }
+
+        function update() {
+            // 1. Calculations
+            const w_m = state.width;
+            const d_m = state.depth;
+            const pw_m = state.plankWidth / 1000;
+            const gap_m = state.gap / 1000;
+            const joistInset_m = state.joistInset / 1000;
+            
+            let planksCount = 0;
+            let linearMeters = 0;
+            let cuts = 0;
+            let plankLength = 0;
+            let joistCount = 0;
+            let joistLength = 0;
+            let joistSpan = 0;
+            
+            if (state.direction === 'width') {
+                // Planks run parallel to width, stacking along depth
+                planksCount = Math.ceil((d_m + gap_m) / (pw_m + gap_m));
+                plankLength = w_m;
+                linearMeters = planksCount * plankLength;
+                cuts = planksCount; // Assume one cut per plank to fit exact width
+                joistLength = d_m;
+                joistSpan = Math.max(0.1, w_m - joistInset_m * 2);
+                joistCount = Math.ceil(joistSpan / (state.joistSpacing / 1000)) + 1;
+            } else {
+                // Planks run parallel to depth, stacking along width
+                planksCount = Math.ceil((w_m + gap_m) / (pw_m + gap_m));
+                plankLength = d_m;
+                linearMeters = planksCount * plankLength;
+                cuts = planksCount;
+                joistLength = Math.max(0.1, w_m - joistInset_m * 2);
+                joistSpan = d_m;
+                joistCount = Math.ceil(joistSpan / (state.joistSpacing / 1000)) + 1;
+            }
+            
+            const area = w_m * d_m;
+            const measuredSpan = state.direction === 'width' ? d_m : w_m;
+            const fullSpan = planksCount * pw_m + Math.max(0, planksCount - 1) * gap_m;
+            const overrun = Math.max(0, fullSpan - measuredSpan);
+            const finalPlankWidth = Math.max(0.01, pw_m - overrun);
+
+            // Update UI Stats
+            els.res.count.textContent = planksCount;
+            els.res.linear.textContent = linearMeters.toFixed(1);
+            els.res.cuts.textContent = cuts;
+            els.res.area.textContent = area.toFixed(1);
+            els.viewerWidthLabel.textContent = `${w_m.toFixed(2)} m`;
+            els.viewerDepthLabel.textContent = `${d_m.toFixed(2)} m`;
+
+            const screws = planksCount * joistCount * state.screwsPerCrossing;
+            updateShoppingList({ planksCount, plankLength, linearMeters, joistCount, joistLength, screws });
+            updateModel({ planksCount, finalPlankWidth, pw_m, gap_m, joistCount, joistLength, joistInset_m });
+        }
+
+        function updateShoppingList({ planksCount, plankLength, linearMeters, joistCount, joistLength, screws }) {
+            const settingsRows = [
+                ['Balcony size', `${state.width.toFixed(2)} × ${state.depth.toFixed(2)} m`, 'width × depth', `${(state.width * state.depth).toFixed(2)} m²`],
+                ['Plank layout', state.direction === 'width' ? 'Along width' : 'Along depth', `${state.plankWidth} mm plank + ${state.gap} mm gap`, `${planksCount} rows`],
+                ['Joist setup', `${state.joistSpacing} mm spacing`, `${state.joistWidth} × ${state.joistHeight} mm, ${state.joistInset} mm width inset`, `${joistCount} joists`],
+                ['Screw setup', `${state.screwsPerCrossing} per crossing`, `${planksCount} planks × ${joistCount} joists`, `${screws} screws`],
+            ];
+
+            const materialRows = [
+                ['Decking planks', `${planksCount} pcs`, `${plankLength.toFixed(2)} m`, `${linearMeters.toFixed(1)} linear m`],
+                ['Under-frame joists', `${joistCount} pcs`, `${joistLength.toFixed(2)} m`, `${(joistCount * joistLength).toFixed(1)} linear m`],
+                ['Deck screws', `${screws} pcs`, `${state.screwsPerCrossing} per crossing`, `${planksCount} planks × ${joistCount} joists`],
+            ];
+
+            const rows = [...settingsRows, ...materialRows];
+
+            shoppingListText = [
+                'Deck Builder shopping list',
+                '',
+                'Project settings:',
+                ...settingsRows.map(([item, value, details, total]) => `${item}: ${value} | ${details} | ${total}`),
+                '',
+                'Materials:',
+                ...materialRows.map(([item, qty, each, total]) => `${item}: ${qty} | ${each} each | ${total}`),
+            ].join('\n');
+
+            els.shoppingList.innerHTML = rows.map(([item, qty, each, total]) => `
+                <tr>
+                    <td class="py-3 pr-3 font-medium">${item}</td>
+                    <td class="py-3 pr-3 font-mono text-wood-400">${qty}</td>
+                    <td class="py-3 pr-3 text-stone-300">${each}</td>
+                    <td class="py-3 pr-3 text-stone-300">${total}</td>
+                </tr>
+            `).join('');
+        }
+
+        async function copyShoppingList() {
+            try {
+                await navigator.clipboard.writeText(shoppingListText);
+                els.copyShoppingStatus.textContent = 'Copied';
+            } catch (error) {
+                const textArea = document.createElement('textarea');
+                textArea.value = shoppingListText;
+                textArea.setAttribute('readonly', '');
+                textArea.style.position = 'fixed';
+                textArea.style.opacity = '0';
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                els.copyShoppingStatus.textContent = 'Copied';
+            }
+
+            window.setTimeout(() => {
+                els.copyShoppingStatus.textContent = '';
+            }, 1800);
+        }
+
+        function initViewer() {
+            if (!jscad.ready) {
+                els.viewer.innerHTML = '<div class="h-full flex items-center justify-center p-8 text-center text-stone-400">Could not load JSCAD viewer. Check your internet connection and refresh.</div>';
+                return;
+            }
+
+            const { prepareRender, cameras, controls } = window.jscadReglRenderer;
+            const { width, height } = els.viewer.getBoundingClientRect();
+            jscad.renderer = prepareRender({ glOptions: { container: els.viewer } });
+            jscad.camera = Object.assign({}, cameras.perspective.defaults, {
+                position: [4.5, -6, 4],
+                target: [0, 0, 0],
+                up: [0, 0, 1],
+            });
+            cameras.perspective.setProjection(jscad.camera, jscad.camera, { width, height });
+            cameras.perspective.update(jscad.camera, jscad.camera);
+            jscad.controls = Object.assign({}, controls.orbit.defaults, {
+                limits: { minDistance: 0.3, maxDistance: 60 },
+            });
+
+            els.viewer.addEventListener('pointerdown', onPointerDown);
+            els.viewer.addEventListener('contextmenu', (event) => event.preventDefault());
+            window.addEventListener('pointermove', onPointerMove);
+            window.addEventListener('pointerup', onPointerUp);
+            window.addEventListener('pointercancel', onPointerUp);
+            els.viewer.addEventListener('wheel', onWheel, { passive: false });
+            window.addEventListener('resize', () => {
+                const size = els.viewer.getBoundingClientRect();
+                cameras.perspective.setProjection(jscad.camera, jscad.camera, size);
+                renderScene();
+            });
+        }
+
+        function onPointerDown(event) {
+            event.preventDefault();
+            els.viewer.setPointerCapture?.(event.pointerId);
+            jscad.pointer = {
+                x: event.clientX,
+                y: event.clientY,
+                pan: event.shiftKey || event.button === 1 || event.button === 2,
+            };
+        }
+
+        function onPointerMove(event) {
+            if (!jscad.pointer || !jscad.ready) return;
+            event.preventDefault();
+
+            const dx = event.clientX - jscad.pointer.x;
+            const dy = event.clientY - jscad.pointer.y;
+            jscad.pointer.x = event.clientX;
+            jscad.pointer.y = event.clientY;
+
+            const orbit = window.jscadReglRenderer.controls.orbit;
+            const change = jscad.pointer.pan || event.shiftKey
+                ? orbit.pan({ controls: jscad.controls, camera: jscad.camera, speed: 0.006 }, [dx, dy])
+                : orbit.rotate({ controls: jscad.controls, camera: jscad.camera, speed: 0.006 }, [dx, dy]);
+            Object.assign(jscad.controls, change.controls);
+            Object.assign(jscad.camera, change.camera);
+            renderScene();
+        }
+
+        function onPointerUp() {
+            jscad.pointer = null;
+        }
+
+        function onWheel(event) {
+            if (!jscad.ready) return;
+            event.preventDefault();
+            const orbit = window.jscadReglRenderer.controls.orbit;
+            const change = orbit.zoom({ controls: jscad.controls, camera: jscad.camera, speed: 0.035 }, event.deltaY > 0 ? 1 : -1);
+            Object.assign(jscad.controls, change.controls);
+            Object.assign(jscad.camera, change.camera);
+            renderScene();
+        }
+
+        function animateCamera() {
+            if (!jscad.ready) return;
+            const orbit = window.jscadReglRenderer.controls.orbit;
+            const change = orbit.update({ controls: jscad.controls, camera: jscad.camera });
+            Object.assign(jscad.controls, change.controls);
+            Object.assign(jscad.camera, change.camera);
+            if (change.controls.changed || jscad.lastRender === 0) renderScene();
+            requestAnimationFrame(animateCamera);
+        }
+
+        function updateModel({ planksCount, finalPlankWidth, pw_m, gap_m, joistCount, joistLength, joistInset_m }) {
+            if (!jscad.ready || !jscad.renderer) return;
+
+            const { cuboid } = window.jscadModeling.primitives;
+            const { colorize } = window.jscadModeling.colors;
+            const { translate } = window.jscadModeling.transforms;
+            const solids = [];
+            const w = state.width;
+            const d = state.depth;
+            const jw = state.joistWidth / 1000;
+            const jh = state.joistHeight / 1000;
+            const topZ = plankThickness / 2;
+            const joistZ = -jh / 2 - 0.006;
+
+            solids.push(...buildGridAndDimensions(w, d));
+
+            for (let i = 0; i < joistCount; i++) {
+                const ratio = joistCount === 1 ? 0.5 : i / (joistCount - 1);
+                if (state.direction === 'width') {
+                    const x = -w / 2 + joistInset_m + ratio * Math.max(0.1, w - joistInset_m * 2);
+                    solids.push(colorize([0.36, 0.25, 0.16, 1], cuboid({
+                        size: [jw, joistLength, jh],
+                        center: [x, 0, joistZ]
+                    })));
+                } else {
+                    const y = -d / 2 + ratio * d;
+                    solids.push(colorize([0.36, 0.25, 0.16, 1], cuboid({
+                        size: [joistLength, jw, jh],
+                        center: [0, y, joistZ]
+                    })));
+                }
+            }
+
+            for (let i = 0; i < planksCount; i++) {
+                const boardWidth = i === planksCount - 1 ? finalPlankWidth : pw_m;
+                const tone = i % 2 === 0 ? [0.63, 0.36, 0.16, 1] : [0.74, 0.47, 0.24, 1];
+
+                if (state.direction === 'width') {
+                    const y = -d / 2 + boardWidth / 2 + i * (pw_m + gap_m);
+                    solids.push(colorize(tone, cuboid({
+                        size: [w, boardWidth, plankThickness],
+                        center: [0, y, topZ]
+                    })));
+                } else {
+                    const x = -w / 2 + boardWidth / 2 + i * (pw_m + gap_m);
+                    solids.push(colorize(tone, cuboid({
+                        size: [boardWidth, d, plankThickness],
+                        center: [x, 0, topZ]
+                    })));
+                }
+            }
+
+            jscad.entities = window.jscadReglRenderer.entitiesFromSolids({}, solids);
+            renderScene();
+        }
+
+        function buildGridAndDimensions(w, d) {
+            const { cuboid } = window.jscadModeling.primitives;
+            const { colorize } = window.jscadModeling.colors;
+            const solids = [];
+            const gridStep = 0.5;
+            const lineThickness = 0.008;
+            const edgeThickness = 0.018;
+            const dimThickness = 0.03;
+            const z = -0.035;
+            const dimZ = plankThickness + 0.025;
+            const widthY = -d / 2 - 0.18;
+            const depthX = -w / 2 - 0.18;
+            const gridColor = [0.22, 0.24, 0.27, 1];
+            const edgeColor = [0.75, 0.8, 0.86, 1];
+            const widthColor = [0.22, 0.65, 1, 1];
+            const depthColor = [0.2, 0.85, 0.5, 1];
+
+            for (let x = -w / 2; x <= w / 2 + 0.001; x += gridStep) {
+                solids.push(colorize(gridColor, cuboid({
+                    size: [lineThickness, d, lineThickness],
+                    center: [x, 0, z]
+                })));
+            }
+
+            for (let y = -d / 2; y <= d / 2 + 0.001; y += gridStep) {
+                solids.push(colorize(gridColor, cuboid({
+                    size: [w, lineThickness, lineThickness],
+                    center: [0, y, z]
+                })));
+            }
+
+            solids.push(
+                colorize(edgeColor, cuboid({ size: [w, edgeThickness, edgeThickness], center: [0, -d / 2, z + 0.01] })),
+                colorize(edgeColor, cuboid({ size: [w, edgeThickness, edgeThickness], center: [0, d / 2, z + 0.01] })),
+                colorize(edgeColor, cuboid({ size: [edgeThickness, d, edgeThickness], center: [-w / 2, 0, z + 0.01] })),
+                colorize(edgeColor, cuboid({ size: [edgeThickness, d, edgeThickness], center: [w / 2, 0, z + 0.01] }))
+            );
+
+            solids.push(
+                colorize(widthColor, cuboid({ size: [w, dimThickness, dimThickness], center: [0, widthY, dimZ] })),
+                colorize(widthColor, cuboid({ size: [dimThickness, 0.18, dimThickness], center: [-w / 2, widthY, dimZ] })),
+                colorize(widthColor, cuboid({ size: [dimThickness, 0.18, dimThickness], center: [w / 2, widthY, dimZ] })),
+                colorize(depthColor, cuboid({ size: [dimThickness, d, dimThickness], center: [depthX, 0, dimZ] })),
+                colorize(depthColor, cuboid({ size: [0.18, dimThickness, dimThickness], center: [depthX, -d / 2, dimZ] })),
+                colorize(depthColor, cuboid({ size: [0.18, dimThickness, dimThickness], center: [depthX, d / 2, dimZ] }))
+            );
+
+            return solids;
+        }
+
+        function renderScene() {
+            if (!jscad.ready || !jscad.renderer) return;
+
+            const { drawCommands } = window.jscadReglRenderer;
+            jscad.renderer({
+                camera: jscad.camera,
+                drawCommands: {
+                    drawLines: drawCommands.drawLines,
+                    drawMesh: drawCommands.drawMesh,
+                },
+                entities: jscad.entities,
+                rendering: {
+                    background: [0.1, 0.1, 0.1, 1],
+                }
+            });
+            jscad.lastRender = performance.now();
+        }
+
+        // Init
+        initViewer();
+        Object.keys(els.inputs).forEach(syncControls);
+        setDirection(state.direction);
+        update();
+        animateCamera();
+    </script>
+</body>
+</html>
