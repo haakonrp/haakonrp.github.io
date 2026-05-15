@@ -1,1 +1,10 @@
-[]
+[
+  {
+    "timestamp": "2026-05-15T17:07:31Z",
+    "datelong": 1778864859079,
+    "current": 550,
+    "visitorsIn": 1951,
+    "visitorsOut": 1401,
+    "capacityStatus": "good"
+  }
+]
