@@ -488,6 +488,17 @@
         }
 
         function update() {
+            // Coalesce rapid input events (slider drags) into a single rebuild per animation frame.
+            if (updatePending) return;
+            updatePending = true;
+            requestAnimationFrame(() => {
+                updatePending = false;
+                applyUpdate();
+            });
+        }
+        let updatePending = false;
+
+        function applyUpdate() {
             // 1. Calculations
             const w_m = state.width;
             const d_m = state.depth;
@@ -704,8 +715,9 @@
             const d = state.depth;
             const jw = state.joistWidth / 1000;
             const jh = state.joistHeight / 1000;
-            const topZ = plankThickness / 2;
-            const joistZ = -jh / 2 - 0.006;
+            // Grid sits at z = 0, joists rest just above it, planks stack on top of joists.
+            const joistZ = jh / 2 + 0.002;
+            const topZ = joistZ + jh / 2 + plankThickness / 2;
 
             solids.push(...buildGridAndDimensions(w, d));
 
@@ -753,38 +765,22 @@
             const { cuboid } = window.jscadModeling.primitives;
             const { colorize } = window.jscadModeling.colors;
             const solids = [];
-            const gridStep = 0.5;
-            const lineThickness = 0.008;
             const edgeThickness = 0.018;
             const dimThickness = 0.03;
-            const z = -0.035;
-            const dimZ = plankThickness + 0.025;
+            // Deck top sits at joistHeight + plankThickness above the grid (grid is drawn separately at z = 0).
+            const deckTopZ = state.joistHeight / 1000 + plankThickness;
+            const dimZ = deckTopZ + 0.025;
             const widthY = -d / 2 - 0.18;
             const depthX = -w / 2 - 0.18;
-            const gridColor = [0.22, 0.24, 0.27, 1];
             const edgeColor = [0.75, 0.8, 0.86, 1];
             const widthColor = [0.22, 0.65, 1, 1];
             const depthColor = [0.2, 0.85, 0.5, 1];
 
-            for (let x = -w / 2; x <= w / 2 + 0.001; x += gridStep) {
-                solids.push(colorize(gridColor, cuboid({
-                    size: [lineThickness, d, lineThickness],
-                    center: [x, 0, z]
-                })));
-            }
-
-            for (let y = -d / 2; y <= d / 2 + 0.001; y += gridStep) {
-                solids.push(colorize(gridColor, cuboid({
-                    size: [w, lineThickness, lineThickness],
-                    center: [0, y, z]
-                })));
-            }
-
             solids.push(
-                colorize(edgeColor, cuboid({ size: [w, edgeThickness, edgeThickness], center: [0, -d / 2, z + 0.01] })),
-                colorize(edgeColor, cuboid({ size: [w, edgeThickness, edgeThickness], center: [0, d / 2, z + 0.01] })),
-                colorize(edgeColor, cuboid({ size: [edgeThickness, d, edgeThickness], center: [-w / 2, 0, z + 0.01] })),
-                colorize(edgeColor, cuboid({ size: [edgeThickness, d, edgeThickness], center: [w / 2, 0, z + 0.01] }))
+                colorize(edgeColor, cuboid({ size: [w, edgeThickness, edgeThickness], center: [0, -d / 2, deckTopZ + 0.005] })),
+                colorize(edgeColor, cuboid({ size: [w, edgeThickness, edgeThickness], center: [0, d / 2, deckTopZ + 0.005] })),
+                colorize(edgeColor, cuboid({ size: [edgeThickness, d, edgeThickness], center: [-w / 2, 0, deckTopZ + 0.005] })),
+                colorize(edgeColor, cuboid({ size: [edgeThickness, d, edgeThickness], center: [w / 2, 0, deckTopZ + 0.005] }))
             );
 
             solids.push(
@@ -803,15 +799,36 @@
             if (!jscad.ready || !jscad.renderer) return;
 
             const { drawCommands } = window.jscadReglRenderer;
+            const w = state.width;
+            const d = state.depth;
+            // Grid extends ~3 m past the deck on each side, sized to even meters.
+            const gridSize = Math.ceil(Math.max(w, d) + 6);
+            const gridEntity = {
+                visuals: { drawCmd: 'drawGrid', show: true },
+                size: [gridSize, gridSize],
+                ticks: [1, 0.5],
+                color: [0.32, 0.34, 0.38, 0.5],
+                subColor: [0.22, 0.24, 0.27, 0.35],
+                fadeOut: false,
+            };
             jscad.renderer({
                 camera: jscad.camera,
                 drawCommands: {
+                    drawGrid: drawCommands.drawGrid,
                     drawLines: drawCommands.drawLines,
                     drawMesh: drawCommands.drawMesh,
                 },
-                entities: jscad.entities,
+                entities: [gridEntity, ...jscad.entities],
                 rendering: {
                     background: [0.1, 0.1, 0.1, 1],
+                    // Light directly overhead and very far away so all top faces light evenly (no visible hot-spot).
+                    // Slight horizontal offset keeps joist/plank sides distinguishable.
+                    lightPosition: [50, 50, 500],
+                    lightColor: [1, 0.97, 0.92, 1],
+                    ambientLightAmount: 0.55,
+                    diffuseLightAmount: 0.45,
+                    specularLightAmount: 0,
+                    materialShininess: 0,
                 }
             });
             jscad.lastRender = performance.now();
