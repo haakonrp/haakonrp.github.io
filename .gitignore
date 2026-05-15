@@ -4,3 +4,6 @@ node_modules/
 dist/
 build/
 *.log
+
+# Local mock data for toyenbadet-count (real data lives on the `data` branch)
+toyenbadet-count/data/

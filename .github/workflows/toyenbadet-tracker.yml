@@ -1,0 +1,100 @@
+name: Tøyenbadet visitor tracker
+
+on:
+  schedule:
+    # Cron is UTC. Oslo is UTC+1 (winter) / UTC+2 (summer).
+    # Opening hours (Oslo): Mon-Fri 07:00-19:30, Sat-Sun 10:00-16:30.
+    # Cron fires the *intersection* across both DST offsets; the in-job
+    # guard skips any run that lands outside opening hours on the day.
+    # Mon-Fri: 06:00-17:00 UTC (= 07:00-18:00 winter / 08:00-19:00 summer)
+    - cron: "5 6-17 * * 1-5"
+    # Sat-Sun: 09:00-14:00 UTC (= 10:00-15:00 winter / 11:00-16:00 summer)
+    - cron: "5 9-14 * * 0,6"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: toyenbadet-tracker
+  cancel-in-progress: false
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout data branch
+        uses: actions/checkout@v4
+        with:
+          ref: data
+          fetch-depth: 1
+
+      - name: Check opening hours (Europe/Oslo)
+        id: hours
+        run: |
+          set -euo pipefail
+          # Get current weekday (1=Mon..7=Sun) and HH:MM in Oslo time
+          dow=$(TZ=Europe/Oslo date +%u)
+          hm=$(TZ=Europe/Oslo date +%H:%M)
+          # Convert HH:MM to minutes since midnight for easy comparison
+          mins=$(( 10#${hm%:*} * 60 + 10#${hm#*:} ))
+
+          open=0
+          if [ "$dow" -ge 1 ] && [ "$dow" -le 5 ]; then
+            # Mon-Fri: 07:00 (420) - 19:30 (1170)
+            if [ "$mins" -ge 420 ] && [ "$mins" -le 1170 ]; then open=1; fi
+          else
+            # Sat-Sun: 10:00 (600) - 16:30 (990)
+            if [ "$mins" -ge 600 ] && [ "$mins" -le 990 ]; then open=1; fi
+          fi
+
+          echo "Oslo time: $(TZ=Europe/Oslo date) (dow=$dow, mins=$mins, open=$open)"
+          echo "open=$open" >> "$GITHUB_OUTPUT"
+
+      - name: Fetch current count
+        id: fetch
+        if: steps.hours.outputs.open == '1'
+        run: |
+          set -euo pipefail
+          mkdir -p data
+          response=$(curl -fsSL "https://web.datanova.com/OslobadeneERPTicketMonitor?handler=VisitorData&shopNo=12" -H "Accept: application/json")
+          echo "Response: $response"
+
+          visitors_in=$(echo "$response"  | jq -r '.visitorsIn  // 0')
+          visitors_out=$(echo "$response" | jq -r '.visitorsOut // 0')
+          datelong=$(echo "$response"     | jq -r '.datelong    // 0')
+          status=$(echo "$response"       | jq -r '.capacityStatus // "unknown"')
+          current=$((visitors_in - visitors_out))
+          timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+          file="data/toyenbadet.json"
+          if [ ! -f "$file" ]; then
+            echo "[]" > "$file"
+          fi
+
+          entry=$(jq -n \
+            --arg ts "$timestamp" \
+            --argjson dl "$datelong" \
+            --argjson cur "$current" \
+            --argjson vin "$visitors_in" \
+            --argjson vout "$visitors_out" \
+            --arg st "$status" \
+            '{timestamp:$ts, datelong:$dl, current:$cur, visitorsIn:$vin, visitorsOut:$vout, capacityStatus:$st}')
+
+          jq ". + [$entry]" "$file" > "$file.tmp" && mv "$file.tmp" "$file"
+
+          echo "current=$current" >> "$GITHUB_OUTPUT"
+          echo "timestamp=$timestamp" >> "$GITHUB_OUTPUT"
+
+      - name: Commit and push
+        if: steps.hours.outputs.open == '1'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/toyenbadet.json
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "data: ${{ steps.fetch.outputs.current }} visitors @ ${{ steps.fetch.outputs.timestamp }}"
+            git push origin data
+          fi

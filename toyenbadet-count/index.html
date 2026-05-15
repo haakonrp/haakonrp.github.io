@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tøyenbadet visitor count</title>
+    <link rel="shortcut icon" type="image/png" href="/favicon.png" />
+    <link rel="stylesheet" type="text/css" href="/style.css" />
+    <link rel="stylesheet" type="text/css" href="style.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  </head>
+  <body class="toyenbadet">
+    <div class="wrap">
+      <header>
+        <h1>Tøyenbadet</h1>
+        <p class="subtitle">
+          Visitor count tracked hourly. Data from
+          <a href="https://web.datanova.com/OslobadeneERPTicketMonitor" target="_blank" rel="noopener">datanova</a>.
+        </p>
+      </header>
+
+      <section class="current">
+        <div class="stat">
+          <div class="label">Currently inside</div>
+          <div class="value" id="current-count">–</div>
+          <div class="meta" id="current-time">loading…</div>
+        </div>
+        <div class="stat">
+          <div class="label">Data points</div>
+          <div class="value" id="point-count">–</div>
+          <div class="meta">total</div>
+        </div>
+      </section>
+
+      <section class="chart-section">
+        <h2>Average by hour of day</h2>
+        <div class="chart-box"><canvas id="byHour"></canvas></div>
+      </section>
+
+      <section class="chart-section">
+        <h2>Average by weekday &amp; hour</h2>
+        <div id="heatmap" class="heatmap"></div>
+      </section>
+
+      <section class="chart-section">
+        <h2>Last 7 days</h2>
+        <div class="chart-box"><canvas id="recent"></canvas></div>
+      </section>
+
+      <footer>
+        <a class="link" href="/">← back</a>
+        <span class="sep">·</span>
+        <a class="link" href="https://github.com/haakonrp/haakonrp.github.io/tree/data/data" target="_blank" rel="noopener">raw data</a>
+      </footer>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

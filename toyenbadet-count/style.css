@@ -1,0 +1,113 @@
+html, body.toyenbadet {
+  width: 100%;
+  height: auto;
+  min-height: 100%;
+  overflow: auto;
+  background: #212121;
+  color: #fafafa;
+  font-family: "JetBrains Mono", monospace;
+}
+
+body.toyenbadet {
+  margin: 0;
+  padding: 2rem 1rem 3rem;
+}
+
+.wrap {
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+header h1 {
+  margin: 0 0 .25rem;
+  font-size: 2rem;
+}
+
+.subtitle {
+  margin: 0 0 1.5rem;
+  color: #aaa;
+  font-size: .9rem;
+}
+
+.subtitle a, .link {
+  color: #6cc4ff;
+  text-decoration: none;
+}
+.subtitle a:hover, .link:hover { text-decoration: underline; }
+
+.current {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+
+.stat {
+  flex: 1 1 200px;
+  background: #2a2a2a;
+  padding: 1rem 1.25rem;
+  border-radius: 10px;
+  border: 1px solid #333;
+}
+
+.stat .label { color: #aaa; font-size: .8rem; text-transform: uppercase; letter-spacing: .08em; }
+.stat .value { font-size: 2.4rem; font-weight: 700; line-height: 1.1; margin: .25rem 0; }
+.stat .meta  { color: #888; font-size: .8rem; }
+
+.chart-section { margin: 2rem 0; }
+.chart-section h2 { margin: 0 0 .25rem; font-size: 1.1rem; }
+.chart-section .hint { margin: 0 0 .75rem; color: #888; font-size: .8rem; }
+
+.chart-box {
+  background: #2a2a2a;
+  border: 1px solid #333;
+  border-radius: 10px;
+  padding: 1rem;
+  height: 320px;
+}
+
+.heatmap {
+  display: grid;
+  grid-template-columns: 2.5rem repeat(24, minmax(0, 1fr));
+  gap: 2px;
+  background: #2a2a2a;
+  border: 1px solid #333;
+  border-radius: 10px;
+  padding: 1rem;
+  font-size: .65rem;
+  color: #ccc;
+}
+
+.heatmap .hcell {
+  aspect-ratio: 1 / 1;
+  background: #1a1a1a;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+  transition: transform .1s;
+}
+
+.heatmap .hcell[data-count]:hover { transform: scale(1.15); outline: 1px solid #6cc4ff; }
+.heatmap .head { background: transparent; font-weight: 600; color: #888; }
+.heatmap .row-label { background: transparent; text-align: right; padding-right: .5rem; color: #888; }
+
+footer { margin-top: 2rem; color: #888; font-size: .85rem; }
+footer .sep { margin: 0 .5rem; color: #555; }
+
+#hm-tooltip {
+  position: fixed;
+  display: none;
+  pointer-events: none;
+  background: rgba(40,40,40,0.95);
+  border: 1px solid #555;
+  color: #fafafa;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  line-height: 1.35;
+  padding: 6px 8px;
+  border-radius: 3px;
+  white-space: pre;
+  z-index: 1000;
+}
