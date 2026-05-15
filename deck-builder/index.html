@@ -147,6 +147,19 @@
                     <p class="text-xs text-stone-500">Range: 70–200 mm. Common decking boards are roughly 95–145 mm.</p>
                 </div>
 
+                <!-- Plank Height -->
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between gap-4">
+                        <label for="plank-height" class="text-sm font-medium text-stone-300">Plank Height</label>
+                        <div class="flex items-center gap-2 text-sm font-mono text-wood-400">
+                            <input type="text" inputmode="numeric" id="plank-height-number" min="19" max="45" step="1" value="28" aria-label="Plank thickness in millimeters">
+                            <span>mm</span>
+                        </div>
+                    </div>
+                    <input type="range" id="plank-height" min="19" max="45" step="1" value="28" class="w-full">
+                    <p class="text-xs text-stone-500">Range: 19–45 mm. 28 mm is typical for decking boards.</p>
+                </div>
+
                 <!-- Plank Gap -->
                 <div class="space-y-2">
                     <div class="flex items-center justify-between gap-4">
@@ -232,6 +245,26 @@
                 </div>
             </div>
 
+            <div class="space-y-6">
+                <h2 class="text-xl font-semibold border-b border-stone-800 pb-2">Ordering</h2>
+
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between gap-4">
+                        <label for="waste" class="text-sm font-medium text-stone-300">Waste / Extra Buffer</label>
+                        <div class="flex items-center gap-2 text-sm font-mono text-wood-400">
+                            <input type="text" inputmode="numeric" id="waste-number" min="0" max="30" step="1" value="10" aria-label="Waste buffer percentage">
+                            <span>%</span>
+                        </div>
+                    </div>
+                    <input type="range" id="waste" min="0" max="30" step="1" value="10" class="w-full">
+                    <p class="text-xs text-stone-500">Adds a safety margin to plank & joist totals. 10% is typical.</p>
+                </div>
+            </div>
+
+            <button id="reset-defaults" type="button" class="w-full rounded-lg border border-stone-700 bg-stone-800 px-3 py-2 text-sm font-medium text-stone-300 transition-colors hover:bg-stone-700">
+                Reset to defaults
+            </button>
+
         </div>
 
         <!-- Visualization & Results -->
@@ -252,6 +285,12 @@
                     <div class="flex items-center gap-2 mt-1"><span class="inline-block h-2 w-5 rounded bg-emerald-400"></span>Depth: <span id="viewer-depth-label" class="font-mono text-emerald-300">2.0 m</span></div>
                     <div class="mt-1 text-stone-500">Grid spacing: 0.5 m</div>
                 </div>
+                <div class="viewer-overlay absolute top-4 right-4 flex gap-1 pointer-events-auto">
+                    <button data-view="iso" type="button" class="view-btn rounded-lg border border-wood-500 bg-wood-500/20 text-wood-400 px-2 py-1 text-xs font-medium transition-colors">ISO</button>
+                    <button data-view="top" type="button" class="view-btn rounded-lg border border-stone-700 bg-stone-950/75 text-stone-300 px-2 py-1 text-xs font-medium transition-colors hover:bg-stone-800">Top</button>
+                    <button data-view="front" type="button" class="view-btn rounded-lg border border-stone-700 bg-stone-950/75 text-stone-300 px-2 py-1 text-xs font-medium transition-colors hover:bg-stone-800">Front</button>
+                    <button data-view="side" type="button" class="view-btn rounded-lg border border-stone-700 bg-stone-950/75 text-stone-300 px-2 py-1 text-xs font-medium transition-colors hover:bg-stone-800">Side</button>
+                </div>
             </div>
 
             <!-- Results Panel -->
@@ -259,6 +298,7 @@
                 <div class="bg-stone-900/50 p-4 rounded-xl border border-stone-800">
                     <div class="text-stone-400 text-xs uppercase tracking-wider mb-1">Total Planks</div>
                     <div class="text-3xl font-light text-white" id="res-count">0</div>
+                    <div class="text-xs text-stone-500 mt-1" id="res-edge"></div>
                 </div>
                 <div class="bg-stone-900/50 p-4 rounded-xl border border-stone-800">
                     <div class="text-stone-400 text-xs uppercase tracking-wider mb-1">Total Linear</div>
@@ -288,19 +328,25 @@
                     </div>
                     <div class="flex flex-col items-end gap-2 text-right">
                         <div class="text-xs text-stone-500">Assumes joists run perpendicular to deck planks.</div>
-                        <button id="copy-shopping-list" type="button" class="rounded-lg border border-wood-500/60 bg-wood-500/15 px-3 py-1.5 text-xs font-medium text-wood-400 transition-colors hover:bg-wood-500/25">
-                            Copy list
-                        </button>
+                        <div class="flex gap-2">
+                            <button id="download-csv" type="button" class="rounded-lg border border-stone-700 bg-stone-800 px-3 py-1.5 text-xs font-medium text-stone-300 transition-colors hover:bg-stone-700">
+                                Download CSV
+                            </button>
+                            <button id="copy-shopping-list" type="button" class="rounded-lg border border-wood-500/60 bg-wood-500/15 px-3 py-1.5 text-xs font-medium text-wood-400 transition-colors hover:bg-wood-500/25">
+                                Copy list
+                            </button>
+                        </div>
                         <div id="copy-shopping-status" class="min-h-4 text-xs text-emerald-400" aria-live="polite"></div>
                     </div>
                 </div>
+                <div id="warnings" class="mb-4 space-y-2"></div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-sm">
                         <thead class="text-left text-stone-400 border-b border-stone-800">
                             <tr>
                                 <th class="py-2 pr-3 font-medium">Item</th>
-                                <th class="py-2 pr-3 font-medium">Value / Qty</th>
-                                <th class="py-2 pr-3 font-medium">Details</th>
+                                <th class="py-2 pr-3 font-medium">Quantity</th>
+                                <th class="py-2 pr-3 font-medium">Spec</th>
                                 <th class="py-2 pr-3 font-medium">Total</th>
                             </tr>
                         </thead>
@@ -316,22 +362,26 @@
     <script>
         // State
         const STORAGE_KEY = 'deck-builder-settings-v1';
-        const state = {
+        const DEFAULTS = {
             width: 4.0,       // m
             depth: 2.0,       // m
             plankWidth: 120,  // mm
+            plankHeight: 28,  // mm (thickness)
             gap: 5,           // mm
             joistSpacing: 400, // mm
             joistInset: 20,    // mm
             joistWidth: 48,    // mm
             joistHeight: 48,   // mm
             screwsPerCrossing: 2,
+            waste: 10,         // %
             direction: 'width' // 'width' or 'depth'
         };
+        const state = { ...DEFAULTS };
 
         loadSavedState();
 
-        const plankThickness = 0.028; // m, visual approximation only
+        // Derived: plank thickness in meters, driven by state.plankHeight (mm).
+        const getPlankThickness = () => state.plankHeight / 1000;
         const jscad = {
             ready: Boolean(window.jscadModeling && window.jscadReglRenderer),
             renderer: null,
@@ -348,23 +398,27 @@
                 width: document.getElementById('width'),
                 depth: document.getElementById('depth'),
                 plankWidth: document.getElementById('plank-width'),
+                plankHeight: document.getElementById('plank-height'),
                 gap: document.getElementById('gap'),
                 joistSpacing: document.getElementById('joist-spacing'),
                 joistInset: document.getElementById('joist-inset'),
                 joistWidth: document.getElementById('joist-width'),
                 joistHeight: document.getElementById('joist-height'),
                 screwsPerCrossing: document.getElementById('screws-per-crossing'),
+                waste: document.getElementById('waste'),
             },
             numbers: {
                 width: document.getElementById('width-number'),
                 depth: document.getElementById('depth-number'),
                 plankWidth: document.getElementById('plank-width-number'),
+                plankHeight: document.getElementById('plank-height-number'),
                 gap: document.getElementById('gap-number'),
                 joistSpacing: document.getElementById('joist-spacing-number'),
                 joistInset: document.getElementById('joist-inset-number'),
                 joistWidth: document.getElementById('joist-width-number'),
                 joistHeight: document.getElementById('joist-height-number'),
                 screwsPerCrossing: document.getElementById('screws-per-crossing-number'),
+                waste: document.getElementById('waste-number'),
             },
             btns: {
                 width: document.getElementById('dir-width'),
@@ -376,15 +430,21 @@
                 linear: document.getElementById('res-linear'),
                 cuts: document.getElementById('res-cuts'),
                 area: document.getElementById('res-area'),
+                edge: document.getElementById('res-edge'),
             },
             shoppingList: document.getElementById('shopping-list'),
             copyShoppingList: document.getElementById('copy-shopping-list'),
+            downloadCsv: document.getElementById('download-csv'),
+            resetDefaults: document.getElementById('reset-defaults'),
+            warnings: document.getElementById('warnings'),
             copyShoppingStatus: document.getElementById('copy-shopping-status'),
             viewerWidthLabel: document.getElementById('viewer-width-label'),
             viewerDepthLabel: document.getElementById('viewer-depth-label'),
+            viewButtons: document.querySelectorAll('.view-btn'),
         };
 
         let shoppingListText = '';
+        let lastShoppingRows = [];
 
         // Event Listeners
         Object.keys(els.inputs).forEach(key => {
@@ -405,6 +465,17 @@
         els.btns.width.addEventListener('click', () => setDirection('width'));
         els.btns.depth.addEventListener('click', () => setDirection('depth'));
         els.copyShoppingList.addEventListener('click', copyShoppingList);
+        els.downloadCsv.addEventListener('click', downloadCsv);
+        els.resetDefaults.addEventListener('click', resetToDefaults);
+        els.viewButtons.forEach(btn => btn.addEventListener('click', () => setView(btn.dataset.view)));
+
+        function resetToDefaults() {
+            Object.keys(DEFAULTS).forEach(k => { state[k] = DEFAULTS[k]; });
+            Object.keys(els.inputs).forEach(syncControls);
+            setDirection(state.direction);
+            saveState();
+            update();
+        }
 
         function setDirection(dir) {
             state.direction = dir;
@@ -545,56 +616,105 @@
             els.res.linear.textContent = linearMeters.toFixed(1);
             els.res.cuts.textContent = cuts;
             els.res.area.textContent = area.toFixed(1);
+            els.res.edge.textContent = planksCount > 0
+                ? `Edge plank ≈ ${Math.round(finalPlankWidth * 1000)} mm`
+                : '';
             els.viewerWidthLabel.textContent = `${w_m.toFixed(2)} m`;
             els.viewerDepthLabel.textContent = `${d_m.toFixed(2)} m`;
 
             const screws = planksCount * joistCount * state.screwsPerCrossing;
             // Screw length range:
-            //  - min: plank thickness + 25 mm penetration into joist (capped to not punch through)
+            //  - min: plank thickness + 25 mm penetration into joist (capped by joist height − 5 mm safety)
             //  - max: plank thickness + joist height − 1 mm safety margin (so tip stays inside joist)
             // Both rounded to nearest 5 mm (min rounded up, max rounded down).
-            const plankThicknessMm = Math.round(plankThickness * 1000);
-            const minPenetrationMm = Math.min(state.joistHeight - 5, 25);
-            const minScrewLength = Math.ceil((plankThicknessMm + minPenetrationMm) / 5) * 5;
-            const maxScrewLength = Math.floor((plankThicknessMm + state.joistHeight - 1) / 5) * 5;
+            // Guard against degenerate cases where joist is too shallow (min would exceed max).
+            const plankThicknessMm = state.plankHeight;
+            const minPenetrationMm = Math.max(5, Math.min(state.joistHeight - 5, 25));
+            let minScrewLength = Math.ceil((plankThicknessMm + minPenetrationMm) / 5) * 5;
+            let maxScrewLength = Math.floor((plankThicknessMm + state.joistHeight - 1) / 5) * 5;
+            if (maxScrewLength < minScrewLength) maxScrewLength = minScrewLength;
+
+            // Warnings
+            const warnings = [];
+            const joistSpacingMm = state.joistSpacing;
+            if (joistSpacingMm > 500) {
+                warnings.push(`Joist spacing of ${joistSpacingMm} mm is wide — verify your decking board can span this without flexing.`);
+            }
+            if (state.joistHeight < 45) {
+                warnings.push(`Joist height of ${state.joistHeight} mm is shallow — screws may have limited bite.`);
+            }
+            if (finalPlankWidth < 0.04 && planksCount > 1) {
+                warnings.push(`Final edge plank would be only ${Math.round(finalPlankWidth * 1000)} mm wide. Consider tweaking width or gap to avoid a sliver.`);
+            }
+            renderWarnings(warnings);
+
             updateShoppingList({ planksCount, plankLength, linearMeters, joistCount, joistLength, screws, minScrewLength, maxScrewLength });
             updateModel({ planksCount, finalPlankWidth, pw_m, gap_m, joistCount, joistLength, joistInset_m });
         }
 
+        function renderWarnings(warnings) {
+            if (!warnings.length) {
+                els.warnings.innerHTML = '';
+                return;
+            }
+            els.warnings.innerHTML = warnings.map(msg => `
+                <div class="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mt-0.5 shrink-0"><path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+                    <span>${msg}</span>
+                </div>
+            `).join('');
+        }
+
         function updateShoppingList({ planksCount, plankLength, linearMeters, joistCount, joistLength, screws, minScrewLength, maxScrewLength }) {
-            const settingsRows = [
-                ['Balcony size', `${state.width.toFixed(2)} × ${state.depth.toFixed(2)} m`, 'width × depth', `${(state.width * state.depth).toFixed(2)} m²`],
-                ['Plank layout', state.direction === 'width' ? 'Along width' : 'Along depth', `${state.plankWidth} mm plank + ${state.gap} mm gap`, `${planksCount} rows`],
-                ['Joist setup', `${state.joistSpacing} mm spacing`, `${state.joistWidth} × ${state.joistHeight} mm, ${state.joistInset} mm width inset`, `${joistCount} joists`],
-                ['Screw setup', `${state.screwsPerCrossing} per crossing`, `${planksCount} planks × ${joistCount} joists`, `${screws} screws`],
-            ];
+            const wasteFactor = 1 + state.waste / 100;
+            const planksOrder = Math.ceil(planksCount * wasteFactor);
+            const joistsOrder = Math.ceil(joistCount * wasteFactor);
+            const screwsOrder = Math.ceil(screws * wasteFactor);
+            const wasteLabel = state.waste > 0 ? ` (incl. +${state.waste}%)` : '';
 
-            const materialRows = [
-                ['Decking planks', `${planksCount} pcs`, `${plankLength.toFixed(2)} m`, `${linearMeters.toFixed(1)} linear m`],
-                ['Under-frame joists', `${joistCount} pcs`, `${joistLength.toFixed(2)} m`, `${(joistCount * joistLength).toFixed(1)} linear m`],
-                ['Deck screws', `${screws} pcs`, `Length ${minScrewLength}–${maxScrewLength} mm`, `${planksCount} planks × ${joistCount} joists`],
+            const rows = [
+                ['Decking planks', `${planksOrder} pcs${wasteLabel}`, `${state.plankWidth} × ${state.plankHeight} mm, ${plankLength.toFixed(2)} m long`, `${(planksOrder * plankLength).toFixed(1)} linear m`],
+                ['Under-frame joists', `${joistsOrder} pcs${wasteLabel}`, `${state.joistWidth} × ${state.joistHeight} mm, ${joistLength.toFixed(2)} m long`, `${(joistsOrder * joistLength).toFixed(1)} linear m`],
+                ['Deck screws', `${screwsOrder} pcs${wasteLabel}`, `Length ${minScrewLength}–${maxScrewLength} mm, ${state.screwsPerCrossing} per crossing`, `≈ ${Math.ceil(screwsOrder / 250)} box${Math.ceil(screwsOrder / 250) === 1 ? '' : 'es'} of 250`],
             ];
-
-            const rows = [...settingsRows, ...materialRows];
+            lastShoppingRows = rows;
 
             shoppingListText = [
-                'Deck Builder shopping list',
+                `Deck Builder shopping list — ${state.width.toFixed(2)} × ${state.depth.toFixed(2)} m (${(state.width * state.depth).toFixed(2)} m²)`,
+                `Layout: ${state.direction === 'width' ? 'along width' : 'along depth'} · ${planksCount} rows on ${joistCount} joists`,
                 '',
-                'Project settings:',
-                ...settingsRows.map(([item, value, details, total]) => `${item}: ${value} | ${details} | ${total}`),
-                '',
-                'Materials:',
-                ...materialRows.map(([item, qty, each, total]) => `${item}: ${qty} | ${each} each | ${total}`),
+                ...rows.map(([item, qty, spec, total]) => `${item}: ${qty} | ${spec} | ${total}`),
             ].join('\n');
 
-            els.shoppingList.innerHTML = rows.map(([item, qty, each, total]) => `
+            els.shoppingList.innerHTML = rows.map(([item, qty, spec, total]) => `
                 <tr>
                     <td class="py-3 pr-3 font-medium">${item}</td>
                     <td class="py-3 pr-3 font-mono text-wood-400">${qty}</td>
-                    <td class="py-3 pr-3 text-stone-300">${each}</td>
+                    <td class="py-3 pr-3 text-stone-300">${spec}</td>
                     <td class="py-3 pr-3 text-stone-300">${total}</td>
                 </tr>
             `).join('');
+        }
+
+        function downloadCsv() {
+            if (!lastShoppingRows.length) return;
+            const escape = v => {
+                const s = String(v);
+                return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+            };
+            const csv = [
+                ['Item', 'Quantity', 'Spec', 'Total'],
+                ...lastShoppingRows,
+            ].map(r => r.map(escape).join(',')).join('\n');
+            const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `deck-builder-${state.width.toFixed(2)}x${state.depth.toFixed(2)}m.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         }
 
         async function copyShoppingList() {
@@ -694,6 +814,36 @@
             renderScene();
         }
 
+        function setView(view) {
+            if (!jscad.ready || !jscad.camera) return;
+            const dist = Math.max(state.width, state.depth) * 1.6 + 2;
+            const positions = {
+                iso:   [dist * 0.6, -dist, dist * 0.7],
+                top:   [0.001, 0, dist * 1.2],
+                front: [0, -dist, dist * 0.25],
+                side:  [dist, 0, dist * 0.25],
+            };
+            const pos = positions[view] || positions.iso;
+            jscad.camera.position = pos;
+            jscad.camera.target = [0, 0, 0];
+            const orbit = window.jscadReglRenderer.controls.orbit;
+            const change = orbit.update({ controls: jscad.controls, camera: jscad.camera });
+            Object.assign(jscad.controls, change.controls);
+            Object.assign(jscad.camera, change.camera);
+
+            // Update active button styling
+            els.viewButtons.forEach(btn => {
+                const active = btn.dataset.view === view;
+                btn.classList.toggle('border-wood-500', active);
+                btn.classList.toggle('bg-wood-500/20', active);
+                btn.classList.toggle('text-wood-400', active);
+                btn.classList.toggle('border-stone-700', !active);
+                btn.classList.toggle('bg-stone-950/75', !active);
+                btn.classList.toggle('text-stone-300', !active);
+            });
+            renderScene();
+        }
+
         function animateCamera() {
             if (!jscad.ready) return;
             const orbit = window.jscadReglRenderer.controls.orbit;
@@ -717,6 +867,7 @@
             const jh = state.joistHeight / 1000;
             // Grid sits at z = 0, joists rest just above it, planks stack on top of joists.
             const joistZ = jh / 2 + 0.002;
+            const plankThickness = getPlankThickness();
             const topZ = joistZ + jh / 2 + plankThickness / 2;
 
             solids.push(...buildGridAndDimensions(w, d));
@@ -768,7 +919,7 @@
             const edgeThickness = 0.018;
             const dimThickness = 0.03;
             // Deck top sits at joistHeight + plankThickness above the grid (grid is drawn separately at z = 0).
-            const deckTopZ = state.joistHeight / 1000 + plankThickness;
+            const deckTopZ = state.joistHeight / 1000 + getPlankThickness();
             const dimZ = deckTopZ + 0.025;
             const widthY = -d / 2 - 0.18;
             const depthX = -w / 2 - 0.18;
