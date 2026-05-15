@@ -538,11 +538,19 @@
             els.viewerDepthLabel.textContent = `${d_m.toFixed(2)} m`;
 
             const screws = planksCount * joistCount * state.screwsPerCrossing;
-            updateShoppingList({ planksCount, plankLength, linearMeters, joistCount, joistLength, screws });
+            // Screw length range:
+            //  - min: plank thickness + 25 mm penetration into joist (capped to not punch through)
+            //  - max: plank thickness + joist height − 1 mm safety margin (so tip stays inside joist)
+            // Both rounded to nearest 5 mm (min rounded up, max rounded down).
+            const plankThicknessMm = Math.round(plankThickness * 1000);
+            const minPenetrationMm = Math.min(state.joistHeight - 5, 25);
+            const minScrewLength = Math.ceil((plankThicknessMm + minPenetrationMm) / 5) * 5;
+            const maxScrewLength = Math.floor((plankThicknessMm + state.joistHeight - 1) / 5) * 5;
+            updateShoppingList({ planksCount, plankLength, linearMeters, joistCount, joistLength, screws, minScrewLength, maxScrewLength });
             updateModel({ planksCount, finalPlankWidth, pw_m, gap_m, joistCount, joistLength, joistInset_m });
         }
 
-        function updateShoppingList({ planksCount, plankLength, linearMeters, joistCount, joistLength, screws }) {
+        function updateShoppingList({ planksCount, plankLength, linearMeters, joistCount, joistLength, screws, minScrewLength, maxScrewLength }) {
             const settingsRows = [
                 ['Balcony size', `${state.width.toFixed(2)} × ${state.depth.toFixed(2)} m`, 'width × depth', `${(state.width * state.depth).toFixed(2)} m²`],
                 ['Plank layout', state.direction === 'width' ? 'Along width' : 'Along depth', `${state.plankWidth} mm plank + ${state.gap} mm gap`, `${planksCount} rows`],
@@ -553,7 +561,7 @@
             const materialRows = [
                 ['Decking planks', `${planksCount} pcs`, `${plankLength.toFixed(2)} m`, `${linearMeters.toFixed(1)} linear m`],
                 ['Under-frame joists', `${joistCount} pcs`, `${joistLength.toFixed(2)} m`, `${(joistCount * joistLength).toFixed(1)} linear m`],
-                ['Deck screws', `${screws} pcs`, `${state.screwsPerCrossing} per crossing`, `${planksCount} planks × ${joistCount} joists`],
+                ['Deck screws', `${screws} pcs`, `Length ${minScrewLength}–${maxScrewLength} mm`, `${planksCount} planks × ${joistCount} joists`],
             ];
 
             const rows = [...settingsRows, ...materialRows];
