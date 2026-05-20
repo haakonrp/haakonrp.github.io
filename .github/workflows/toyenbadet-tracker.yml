@@ -6,10 +6,13 @@ on:
     # Opening hours (Oslo): Mon-Fri 07:00-19:30, Sat-Sun 10:00-16:30.
     # Cron fires the *intersection* across both DST offsets; the in-job
     # guard skips any run that lands outside opening hours on the day.
+    # Scheduled every 30 min because GitHub silently drops scheduled
+    # runs under load; firing twice per hour increases the odds of at
+    # least one run landing per hour.
     # Mon-Fri: 06:00-17:00 UTC (= 07:00-18:00 winter / 08:00-19:00 summer)
-    - cron: "5 6-17 * * 1-5"
+    - cron: "5,35 6-17 * * 1-5"
     # Sat-Sun: 09:00-14:00 UTC (= 10:00-15:00 winter / 11:00-16:00 summer)
-    - cron: "5 9-14 * * 0,6"
+    - cron: "5,35 9-14 * * 0,6"
   workflow_dispatch:
 
 permissions:
