@@ -55,10 +55,43 @@ jobs:
         id: fetch
         if: steps.hours.outputs.open == '1'
         run: |
-          set -euo pipefail
+          set -uo pipefail
           mkdir -p data
-          response=$(curl -fsSL "https://web.datanova.com/OslobadeneERPTicketMonitor?handler=VisitorData&shopNo=12" -H "Accept: application/json")
+
+          url="https://web.datanova.com/OslobadeneERPTicketMonitor?handler=VisitorData&shopNo=12"
+          attempts=5
+          response=""
+          for i in $(seq 1 "$attempts"); do
+            if response=$(curl -fsSL --max-time 20 --retry 0 "$url" -H "Accept: application/json"); then
+              echo "Fetched on attempt $i"
+              break
+            fi
+            rc=$?
+            echo "Attempt $i failed (curl exit $rc)"
+            response=""
+            if [ "$i" -lt "$attempts" ]; then
+              sleep $(( i * 5 ))
+            fi
+          done
+
+          if [ -z "$response" ]; then
+            echo "All $attempts attempts failed; skipping this run."
+            echo "fetched=0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Validate JSON before touching state
+          if ! echo "$response" | jq empty >/dev/null 2>&1; then
+            echo "Response is not valid JSON; skipping this run."
+            echo "Response: $response"
+            echo "fetched=0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           echo "Response: $response"
+
+          # Re-enable strict mode for the remainder of this step
+          set -e
 
           visitors_in=$(echo "$response"  | jq -r '.visitorsIn  // 0')
           visitors_out=$(echo "$response" | jq -r '.visitorsOut // 0')
@@ -83,11 +116,12 @@ jobs:
 
           jq ". + [$entry]" "$file" > "$file.tmp" && mv "$file.tmp" "$file"
 
+          echo "fetched=1" >> "$GITHUB_OUTPUT"
           echo "current=$current" >> "$GITHUB_OUTPUT"
           echo "timestamp=$timestamp" >> "$GITHUB_OUTPUT"
 
       - name: Commit and push
-        if: steps.hours.outputs.open == '1'
+        if: steps.hours.outputs.open == '1' && steps.fetch.outputs.fetched == '1'
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
