@@ -2,10 +2,16 @@ html, body.toyenbadet {
   width: 100%;
   height: auto;
   min-height: 100%;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   background: #212121;
   color: #fafafa;
   font-family: "JetBrains Mono", monospace;
+  box-sizing: border-box;
+}
+
+body.toyenbadet, body.toyenbadet *, body.toyenbadet *::before, body.toyenbadet *::after {
+  box-sizing: border-box;
 }
 
 body.toyenbadet {
