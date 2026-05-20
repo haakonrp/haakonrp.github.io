@@ -223,14 +223,23 @@ function renderRecent(data) {
         backgroundColor: "rgba(108,196,255,0.15)",
         tension: 0.25,
         pointRadius: 0,
+        pointHoverRadius: 5,
+        pointHoverBackgroundColor: "#6cc4ff",
+        pointHoverBorderColor: "#fafafa",
+        pointHoverBorderWidth: 1,
         fill: true,
       }],
     },
     options: {
       responsive: true, maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false, axis: "x" },
+      hover:       { mode: "index", intersect: false, axis: "x" },
       plugins: {
         legend: { display: false },
         tooltip: {
+          mode: "index",
+          intersect: false,
+          axis: "x",
           displayColors: false,
           backgroundColor: "rgba(40,40,40,0.95)",
           borderColor: "#555",
