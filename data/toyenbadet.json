@@ -510,5 +510,13 @@
     "visitorsIn": 1376,
     "visitorsOut": 1288,
     "capacityStatus": "good"
+  },
+  {
+    "timestamp": "2026-05-25T17:16:48Z",
+    "datelong": 1779729409805,
+    "current": 88,
+    "visitorsIn": 1376,
+    "visitorsOut": 1288,
+    "capacityStatus": "good"
   }
 ]
