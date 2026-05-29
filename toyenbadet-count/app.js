@@ -16,8 +16,8 @@ const OPENING = {
   5: { open: 7,  close: 20 },
   6: { open: 10, close: 17 }, // Sat
 };
-// Hour range shown across all days (union): 7..19
-const HOURS = Array.from({ length: 20 - 7 }, (_, i) => i + 7); // [7..19]
+// Hour range shown across all days (union): 7..20
+const HOURS = Array.from({ length: 21 - 7 }, (_, i) => i + 7); // [7..20]
 
 function isOpen(day, hour) {
   const o = OPENING[day];
