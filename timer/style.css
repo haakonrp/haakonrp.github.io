@@ -392,8 +392,9 @@ body.phase-done    { background: #4f8f3a; }
 .phase-tag {
   font-size: 0.85rem;
   text-transform: uppercase;
-  letter-spacing: 0.25em;
+  letter-spacing: 0.15em;
   color: rgba(255, 255, 255, 0.8);
+  text-align: center;
 }
 
 .phase-name {
@@ -402,17 +403,27 @@ body.phase-done    { background: #4f8f3a; }
   line-height: 1.1;
   word-break: break-word;
   color: #fff;
+  min-height: clamp(1.9rem, 8.8vw, 2.65rem);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
+.phase-name.phase-next {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+}
+.phase-name.phase-next b { color: #fff; font-weight: 800; }
 
 .clock {
-  font-size: clamp(2.6rem, 13vw, 3.6rem);
+  font-size: clamp(3rem, 15vw, 4.2rem);
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   line-height: 1;
   color: #fff;
 }
 
-.ring-wrap { position: relative; width: 380px; max-width: 92vw; }
+.ring-wrap { position: relative; width: 420px; max-width: 94vw; }
 .ring-wrap svg { width: 100%; height: auto; display: block; transform: rotate(-90deg); }
 .ring-bg { stroke: rgba(255, 255, 255, 0.22); }
 .ring-fg { stroke: #fff; transition: stroke-dashoffset 0.2s linear; }
@@ -426,6 +437,7 @@ body.phase-done    { background: #4f8f3a; }
 
 .next-up { font-size: 0.9rem; color: rgba(255, 255, 255, 0.8); }
 .next-up b { color: #fff; font-weight: 700; }
+.next-up.reserve { visibility: hidden; }
 
 .run.done .phase-name { color: #fff; }
 .run.done .muted { color: rgba(255, 255, 255, 0.85); }

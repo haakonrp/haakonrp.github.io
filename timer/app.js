@@ -29,7 +29,7 @@ const LS_LAST = 'circuitTimer.last';
 
 const DEFAULT_PRESETS = {
   'Full body': {
-    warmup: 0,
+    warmup: 5,
     exTime: 40,
     restEx: 20,
     sets: 3,
@@ -212,10 +212,11 @@ function buildSteps(c) {
         name: ex.name || `Exercise ${e + 1}`,
         dur: ex.time,
         set: s + 1,
+        exIdx: e + 1,
       });
       const lastExercise = e === c.exercises.length - 1;
       if (!lastExercise && c.restEx > 0) {
-        steps.push({ kind: 'rest', name: 'Rest', dur: c.restEx, set: s + 1 });
+        steps.push({ kind: 'rest', name: 'Rest', dur: c.restEx, set: s + 1, exIdx: e + 1 });
       }
     }
     const lastSet = s === c.sets - 1;
@@ -716,17 +717,28 @@ function renderRun() {
   wrap.classList.add(classFor(step.kind));
   setBodyPhase(classFor(step.kind));
 
+  const nEx = config.exercises.length;
   const tag = document.createElement('div');
   tag.className = 'phase-tag';
   tag.textContent =
-    step.kind === 'work' ? `Set ${step.set} of ${config.sets}` :
+    step.kind === 'work' ? `${step.exIdx}/${nEx} · Set ${step.set}/${config.sets}` :
     step.kind === 'warmup' ? 'Get ready' :
-    step.kind === 'restSet' ? 'Set rest' : 'Rest';
+    step.kind === 'restSet' ? `Set rest · ${step.set}/${config.sets} sets done` :
+    `Rest · ${step.exIdx}/${nEx} · Set ${step.set}/${config.sets}`;
+
+  const isWork = step.kind === 'work';
+  const nextName = nextWorkName(runState.i);
 
   const name = document.createElement('div');
   name.className = 'phase-name';
   name.id = 'phaseName';
-  name.textContent = step.name;
+  if (isWork) {
+    name.textContent = step.name;
+  } else {
+    // Rest/warmup/set-rest: show what's coming up, here above the circle.
+    name.classList.add('phase-next');
+    name.innerHTML = nextName ? `Next:&nbsp;<b>${escapeHtml(nextName)}</b>` : 'Last one!';
+  }
 
   // ring
   const R = 108, C = 2 * Math.PI * R;
@@ -744,13 +756,16 @@ function renderRun() {
       <div class="clock" id="clock">${fmtClock(runState.remaining)}</div>
     </div>`;
 
-  const nextName = nextWorkName(runState.i);
+  wrap.append(tag, name, ring);
+  // Always reserve the bottom line so the ring stays at the same height in
+  // every phase. For work it shows what's next; otherwise it's invisible.
   const nu = document.createElement('div');
-  nu.className = 'next-up';
+  nu.className = isWork ? 'next-up' : 'next-up reserve';
   nu.id = 'nextUp';
-  nu.innerHTML = nextName ? `Next: <b>${escapeHtml(nextName)}</b>` : 'Last one!';
-
-  wrap.append(tag, name, ring, nu);
+  nu.innerHTML = isWork
+    ? (nextName ? `Next: <b>${escapeHtml(nextName)}</b>` : 'Last one!')
+    : 'Next:&nbsp;<b>placeholder</b>';
+  wrap.append(nu);
   view.appendChild(wrap);
 
   // Actions
