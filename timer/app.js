@@ -153,6 +153,9 @@ function totalSeconds(c) {
 // ---------- Beeps ----------
 let audioCtx;
 function ensureAudio() {
+  // Route audio through the playback session so the iOS mute switch is
+  // ignored (iOS 16.4+ / modern Safari).
+  try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   if (audioCtx.state === 'suspended') audioCtx.resume();
   return audioCtx;
