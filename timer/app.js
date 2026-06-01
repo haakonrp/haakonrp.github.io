@@ -152,45 +152,12 @@ function totalSeconds(c) {
 
 // ---------- Beeps ----------
 let audioCtx;
-let silentEl;
-
-// Tiny silent WAV (digital silence) used to hold an iOS "playback" audio
-// session so beeps are audible even when the ring/silent switch is on.
-// Needed for in-app WebKit browsers (e.g. Chrome on iOS) where
-// navigator.audioSession is unavailable.
-function silentWavDataUri(seconds = 1) {
-  const sampleRate = 8000;
-  const numSamples = Math.floor(sampleRate * seconds);
-  const dataSize = numSamples * 2;
-  const buf = new ArrayBuffer(44 + dataSize);
-  const v = new DataView(buf);
-  const ws = (off, s) => { for (let i = 0; i < s.length; i++) v.setUint8(off + i, s.charCodeAt(i)); };
-  ws(0, 'RIFF'); v.setUint32(4, 36 + dataSize, true); ws(8, 'WAVE');
-  ws(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
-  v.setUint32(24, sampleRate, true); v.setUint32(28, sampleRate * 2, true);
-  v.setUint16(32, 2, true); v.setUint16(34, 16, true);
-  ws(36, 'data'); v.setUint32(40, dataSize, true); // samples already zero (silent)
-  let bin = '';
-  const bytes = new Uint8Array(buf);
-  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-  return 'data:audio/wav;base64,' + btoa(bin);
-}
-
 function ensureAudio() {
   // Safari: route audio through the playback session so the mute switch is
   // ignored (iOS 16.4+).
   try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   if (audioCtx.state === 'suspended') audioCtx.resume();
-  // Chrome/other iOS WebKit browsers: keep a silent loop playing to hold the
-  // playback session active.
-  try {
-    if (!silentEl) {
-      silentEl = new Audio(silentWavDataUri());
-      silentEl.loop = true;
-    }
-    silentEl.play().catch(() => {});
-  } catch (e) {}
   return audioCtx;
 }
 function beep(freq, dur, when = 0, peak = 0.35) {
