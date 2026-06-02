@@ -374,7 +374,7 @@ body.is-running .topbar h1 { color: #fff; }
 
 /* Lock the run view to the viewport so it never needs scrolling */
 body.is-running { overflow: hidden; }
-body.is-running .app { height: 100vh; height: 100dvh; min-height: 0; }
+body.is-running .app { height: 100vh; height: 100svh; min-height: 0; }
 body.is-running main { flex: 1; min-height: 0; padding: 0.5rem 0; overflow: hidden; }
 body.is-running .run { height: 100%; min-height: 0; padding: 0; gap: clamp(0.4rem, 1.5vh, 0.9rem); }
 
