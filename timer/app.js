@@ -737,7 +737,9 @@ function renderRun() {
   } else {
     // Rest/warmup/set-rest: show what's coming up, here above the circle.
     name.classList.add('phase-next');
-    name.innerHTML = nextName ? `Next:&nbsp;<b>${escapeHtml(nextName)}</b>` : 'Last one!';
+    name.innerHTML = nextName
+      ? `<span class="next-inline">Next: <b>${escapeHtml(nextName)}</b></span>`
+      : '<span class="next-inline">Last one!</span>';
   }
 
   // ring
