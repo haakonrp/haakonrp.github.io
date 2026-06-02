@@ -9,10 +9,12 @@ on:
     # Scheduled every 30 min because GitHub silently drops scheduled
     # runs under load; firing twice per hour increases the odds of at
     # least one run landing per hour.
-    # Mon-Fri: 06:00-17:00 UTC (= 07:00-18:00 winter / 08:00-19:00 summer)
-    - cron: "5,35 6-17 * * 1-5"
-    # Sat-Sun: 09:00-14:00 UTC (= 10:00-15:00 winter / 11:00-16:00 summer)
-    - cron: "5,35 9-14 * * 0,6"
+    # Mon-Fri: covers 07:00-19:30 Oslo across both DST offsets
+    # (07:00 Oslo = 05:00 UTC summer; 19:30 Oslo = 18:30 UTC winter)
+    - cron: "5,35 5-18 * * 1-5"
+    # Sat-Sun: covers 09:00-16:30 Oslo across both DST offsets
+    # (09:00 Oslo = 07:00 UTC summer; 16:30 Oslo = 15:30 UTC winter)
+    - cron: "5,35 7-15 * * 0,6"
   workflow_dispatch:
 
 permissions:
@@ -47,8 +49,8 @@ jobs:
             # Mon-Fri: 07:00 (420) - 19:30 (1170)
             if [ "$mins" -ge 420 ] && [ "$mins" -le 1170 ]; then open=1; fi
           else
-            # Sat-Sun: 10:00 (600) - 16:30 (990)
-            if [ "$mins" -ge 600 ] && [ "$mins" -le 990 ]; then open=1; fi
+            # Sat-Sun: 09:00 (540) - 16:30 (990)
+            if [ "$mins" -ge 540 ] && [ "$mins" -le 990 ]; then open=1; fi
           fi
 
           echo "Oslo time: $(TZ=Europe/Oslo date) (dow=$dow, mins=$mins, open=$open)"
