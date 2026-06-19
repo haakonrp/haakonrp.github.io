@@ -254,7 +254,7 @@ body.is-reordering, body.is-reordering * {
 
 .seg.warmup, .sw.warmup { background: #d4af37; }
 .seg.work,   .sw.work   { background: #6aa84f; }
-.seg.rest,   .sw.rest   { background: #4f8fa8; }
+.seg.rest,   .sw.rest   { background: #9aa0a6; }
 .seg.restSet,.sw.restSet{ background: #a96fd4; }
 
 .legend {
@@ -380,7 +380,7 @@ body.is-running .run { height: 100%; min-height: 0; padding: 0; gap: clamp(0.4re
 
 body.phase-work    { background: #4f8f3a; }
 body.phase-warmup  { background: #b8860b; }
-body.phase-rest    { background: #3a7d96; }
+body.phase-rest    { background: #5a5f66; }
 body.phase-restSet { background: #6a4c93; }
 body.phase-done    { background: #4f8f3a; }
 
@@ -416,11 +416,11 @@ body.phase-done    { background: #4f8f3a; }
   text-align: center;
 }
 .phase-name.phase-next {
-  font-size: clamp(1.15rem, 5.6vw, 1.7rem);
+  font-size: clamp(1.4rem, 6.6vw, 2rem);
   font-weight: 600;
   color: rgba(255, 255, 255, 0.85);
 }
-.phase-name.phase-next .next-inline { white-space: nowrap; }
+.phase-name.phase-next .next-inline { white-space: normal; }
 .phase-name.phase-next b { color: #fff; font-weight: 800; }
 
 .clock {
