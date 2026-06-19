@@ -153,15 +153,37 @@ function totalSeconds(c) {
 // ---------- Beeps ----------
 let audioCtx;
 let audioKeepAlive = null;
-function ensureAudio() {
+function applyAudioSession() {
   // Safari: use the "transient" session so beeps mix on top of other audio
   // (e.g. music over AirPlay) instead of pausing it, while still ignoring the
   // hardware mute switch (iOS 16.4+). "playback" is exclusive and would pause
   // whatever else is playing every time we beep.
   try { if (navigator.audioSession) navigator.audioSession.type = 'transient'; } catch (e) {}
-  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+function ensureAudio() {
+  applyAudioSession();
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    // iOS suspends the context whenever another app grabs the audio session
+    // (e.g. you start music after opening the app). Recover automatically so
+    // beeps keep working without needing a fresh user gesture.
+    audioCtx.addEventListener('statechange', () => {
+      if (audioCtx.state === 'suspended') resumeAudio();
+    });
+  }
   if (audioCtx.state === 'suspended') audioCtx.resume();
   return audioCtx;
+}
+
+// Resume the context if it was suspended/interrupted and make sure the
+// keep-alive source is still attached. Safe to call often; it's a no-op when
+// the context is already running.
+function resumeAudio() {
+  try {
+    const ctx = ensureAudio();
+    if (ctx.state === 'suspended') ctx.resume();
+    if (runState && !runState.done && !audioKeepAlive) startAudioKeepAlive();
+  } catch (e) {}
 }
 
 // Keep the AudioContext "running" for the duration of a workout. Without this,
@@ -189,6 +211,10 @@ function stopAudioKeepAlive() {
 function beep(freq, dur, when = 0, peak = 0.35) {
   try {
     const ctx = ensureAudio();
+    // If the context was interrupted, resume and push the beep slightly into
+    // the future so it lands after the context is running again instead of
+    // being scheduled against a stalled clock (which drops the sound).
+    if (ctx.state !== 'running') { ctx.resume(); when = Math.max(when, 0.06); }
     const t = ctx.currentTime + when;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
@@ -223,7 +249,10 @@ function releaseWake() {
   if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
 }
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && runState && !wakeLock) requestWake();
+  if (document.visibilityState === 'visible' && runState && !runState.done) {
+    if (!wakeLock) requestWake();
+    resumeAudio();
+  }
 });
 
 // ---------- Build timeline ----------
@@ -621,6 +650,10 @@ function loopStart() {
       const dt = (now - runState.lastTick) / 1000;
       runState.lastTick = now;
       runState.remaining -= dt;
+
+      // Self-heal: if iOS suspended the audio context (e.g. music/AirPlay
+      // started after the app), bring it back so upcoming beeps play.
+      if (audioCtx && audioCtx.state !== 'running') resumeAudio();
 
       const secLeft = Math.ceil(runState.remaining);
       if (secLeft <= 3 && secLeft >= 1 && secLeft !== runState.lastBeepSecond) {
