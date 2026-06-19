@@ -35,7 +35,11 @@ body {
   left: 0;
   right: 0;
   bottom: 1rem;
-  text-align: center;
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: center;
+  align-items: center;
+  white-space: nowrap;
   font-size: .85rem;
   color: #888;
 }
@@ -47,4 +51,14 @@ body {
 
 .site-footer .link {
   color: #aaa;
+}
+
+@media (max-width: 430px) {
+  .site-footer {
+    font-size: .72rem;
+  }
+
+  .site-footer .sep {
+    margin: 0 .35rem;
+  }
 }
