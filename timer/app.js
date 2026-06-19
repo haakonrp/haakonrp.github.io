@@ -152,13 +152,39 @@ function totalSeconds(c) {
 
 // ---------- Beeps ----------
 let audioCtx;
+let audioKeepAlive = null;
 function ensureAudio() {
-  // Safari: route audio through the playback session so the mute switch is
-  // ignored (iOS 16.4+).
-  try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
+  // Safari: use the "transient" session so beeps mix on top of other audio
+  // (e.g. music over AirPlay) instead of pausing it, while still ignoring the
+  // hardware mute switch (iOS 16.4+). "playback" is exclusive and would pause
+  // whatever else is playing every time we beep.
+  try { if (navigator.audioSession) navigator.audioSession.type = 'transient'; } catch (e) {}
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   if (audioCtx.state === 'suspended') audioCtx.resume();
   return audioCtx;
+}
+
+// Keep the AudioContext "running" for the duration of a workout. Without this,
+// iOS suspends the idle context between beeps; resuming it for each beep makes
+// the device re-acquire the audio route, which interrupts AirPlay playback.
+// A muted DC source keeps the graph alive cheaply without producing sound.
+function startAudioKeepAlive() {
+  try {
+    const ctx = ensureAudio();
+    if (audioKeepAlive) return;
+    const src = ctx.createConstantSource();
+    const gain = ctx.createGain();
+    gain.gain.value = 0; // silent
+    src.connect(gain).connect(ctx.destination);
+    src.start();
+    audioKeepAlive = { src, gain };
+  } catch (e) {}
+}
+function stopAudioKeepAlive() {
+  if (!audioKeepAlive) return;
+  try { audioKeepAlive.src.stop(); } catch (e) {}
+  try { audioKeepAlive.src.disconnect(); audioKeepAlive.gain.disconnect(); } catch (e) {}
+  audioKeepAlive = null;
 }
 function beep(freq, dur, when = 0, peak = 0.35) {
   try {
@@ -232,6 +258,7 @@ function buildSteps(c) {
 // =================================================================
 function renderSetup() {
   releaseWake();
+  stopAudioKeepAlive();
   clearBodyPhase();
   view.innerHTML = '';
 
@@ -570,6 +597,7 @@ function startRun() {
   const steps = buildSteps(config);
   if (steps.length === 0) { alert('Nothing to run.'); return; }
   requestWake();
+  startAudioKeepAlive();
   runState = {
     steps,
     i: 0,
