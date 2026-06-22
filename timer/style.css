@@ -381,14 +381,24 @@ body.is-reordering, body.is-reordering * {
 
 /* ===== Run view (full-screen phase colors) ===== */
 body.is-running { transition: background-color 0.25s ease; }
-body.is-running .topbar { border-bottom-color: rgba(255, 255, 255, 0.15); }
-body.is-running .topbar h1 { color: #fff; }
+/* Hide the header while running to free up vertical space for a bigger view. */
+body.is-running .topbar { display: none; }
 
 /* Lock the run view to the viewport so it never needs scrolling */
 body.is-running { overflow: hidden; }
 body.is-running .app { height: 100vh; height: 100svh; min-height: 0; }
 body.is-running main { flex: 1; min-height: 0; padding: 0.5rem 0; overflow: hidden; }
-body.is-running .run { height: 100%; min-height: 0; padding: 0; gap: clamp(0.4rem, 1.5vh, 0.9rem); }
+body.is-running .run { height: 100%; min-height: 0; padding: 0; gap: clamp(0.5rem, 2vh, 1.2rem); }
+
+/* Bigger text in the run view (header is hidden, so there's room to spare) */
+body.is-running .phase-tag { font-size: clamp(0.95rem, 3.4vw, 1.15rem); }
+body.is-running .phase-name {
+  font-size: clamp(2rem, 9.5vw, 3.2rem);
+  min-height: clamp(2.2rem, 10.5vw, 3.5rem);
+}
+body.is-running .ring-wrap { width: min(94vw, 52vh); }
+body.is-running .clock { font-size: clamp(3.6rem, 18vw, 5.4rem); }
+body.is-running .next-up { font-size: clamp(1rem, 4vw, 1.25rem); }
 
 body.phase-work    { background: #4f8f3a; }
 body.phase-warmup  { background: #b8860b; }
