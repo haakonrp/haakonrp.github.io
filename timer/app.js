@@ -26,6 +26,9 @@ function pickRos() { return ROS[Math.floor(Math.random() * ROS.length)]; }
 // ---------- Storage ----------
 const LS_PRESETS = 'circuitTimer.presets';
 const LS_LAST = 'circuitTimer.last';
+// Names of default presets already offered to this user. Lets us add new
+// built-in presets over time without re-adding ones the user deleted.
+const LS_SEEDED = 'circuitTimer.seededPresets';
 
 const DEFAULT_PRESETS = {
   'Full body': {
@@ -147,6 +150,43 @@ function savePresets(p) {
   localStorage.setItem(LS_PRESETS, JSON.stringify(p));
 }
 
+function loadSeeded() {
+  try {
+    const raw = localStorage.getItem(LS_SEEDED);
+    const arr = raw ? JSON.parse(raw) : [];
+    if (Array.isArray(arr)) return new Set(arr);
+  } catch (e) {}
+  return new Set();
+}
+
+function saveSeeded(set) {
+  localStorage.setItem(LS_SEEDED, JSON.stringify([...set]));
+}
+
+// Add any built-in presets the user hasn't seen yet, without touching their
+// own presets. Each default is offered only once (tracked in LS_SEEDED), so
+// presets the user deletes stay deleted, and new built-ins ship over time.
+// Existing presets are never overwritten on a name clash.
+function migratePresets(presets) {
+  const hadSeeded = localStorage.getItem(LS_SEEDED) != null;
+  const seeded = loadSeeded();
+  let changed = false;
+  for (const name of Object.keys(DEFAULT_PRESETS)) {
+    if (!seeded.has(name)) {
+      if (!(name in presets)) {
+        presets[name] = structuredClone(DEFAULT_PRESETS[name]);
+        changed = true;
+      }
+      seeded.add(name); // mark offered even if skipped due to a name clash
+    }
+  }
+  // Persist when we added presets, or on the very first run, so the stored
+  // presets and the seeded marker stay consistent for future migrations.
+  if (changed || !hadSeeded) savePresets(presets);
+  saveSeeded(seeded);
+  return presets;
+}
+
 function loadLast() {
   try {
     const raw = localStorage.getItem(LS_LAST);
@@ -239,7 +279,7 @@ async function readClipboard() {
 }
 
 // ---------- State ----------
-let presets = loadPresets();
+let presets = migratePresets(loadPresets());
 let config = normalizeConfig(loadLast());
 let selectedPreset = ''; // name of the preset currently selected in the dropdown
 
