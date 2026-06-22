@@ -186,7 +186,7 @@ function stopAudioKeepAlive() {
   try { audioKeepAlive.src.disconnect(); audioKeepAlive.gain.disconnect(); } catch (e) {}
   audioKeepAlive = null;
 }
-function beep(freq, dur, when = 0, peak = 0.35) {
+function beep(freq, dur, when = 0, peak = 0.8) {
   try {
     const ctx = ensureAudio();
     const t = ctx.currentTime + when;
