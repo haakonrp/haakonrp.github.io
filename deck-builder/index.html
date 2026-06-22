@@ -390,6 +390,9 @@
             controls: null,
             entities: [],
             pointer: null,
+            pointers: new Map(),
+            pinchDist: null,
+            pinchCenter: null,
             lastRender: 0,
         };
 
@@ -776,15 +779,82 @@
         function onPointerDown(event) {
             event.preventDefault();
             els.viewer.setPointerCapture?.(event.pointerId);
-            jscad.pointer = {
-                x: event.clientX,
-                y: event.clientY,
-                pan: event.shiftKey || event.button === 1 || event.button === 2,
-            };
+            jscad.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+
+            if (jscad.pointers.size >= 2) {
+                // Two (or more) fingers down: start a pinch gesture, suspend single-pointer orbit/pan.
+                jscad.pointer = null;
+                beginPinch();
+            } else {
+                jscad.pointer = {
+                    x: event.clientX,
+                    y: event.clientY,
+                    pan: event.shiftKey || event.button === 1 || event.button === 2,
+                };
+            }
+        }
+
+        function beginPinch() {
+            const pts = [...jscad.pointers.values()];
+            if (pts.length < 2) return;
+            const [a, b] = pts;
+            jscad.pinchDist = Math.hypot(a.x - b.x, a.y - b.y);
+            jscad.pinchCenter = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
         }
 
         function onPointerMove(event) {
-            if (!jscad.pointer || !jscad.ready) return;
+            if (!jscad.ready) return;
+
+            // Pinch-to-zoom (+ two-finger pan) when two pointers are active.
+            if (jscad.pointers.size >= 2) {
+                if (!jscad.pointers.has(event.pointerId)) return;
+                event.preventDefault();
+                jscad.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+
+                const [a, b] = [...jscad.pointers.values()];
+                const dist = Math.hypot(a.x - b.x, a.y - b.y);
+                const center = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+                const orbit = window.jscadReglRenderer.controls.orbit;
+
+                // Pan first so it isn't affected by the scale the zoom step accumulates below.
+                if (jscad.pinchCenter) {
+                    // Two-finger drag: pan with the midpoint so content follows the fingers.
+                    const dx = center.x - jscad.pinchCenter.x;
+                    const dy = center.y - jscad.pinchCenter.y;
+                    if (dx || dy) {
+                        const pan = orbit.pan(
+                            { controls: jscad.controls, camera: jscad.camera, speed: 0.006 },
+                            [dx, dy]
+                        );
+                        Object.assign(jscad.controls, pan.controls);
+                        Object.assign(jscad.camera, pan.camera);
+                    }
+                }
+
+                if (jscad.pinchDist && dist > 0) {
+                    // The orbit zoom helper ignores the argument's magnitude (only its sign is used)
+                    // and applies `speed` as the per-call distance delta. So we feed the desired
+                    // distance ratio through `speed` and the zoom direction through the sign.
+                    // Fingers spreading apart (dist > prevDist) should move the camera closer (zoom in).
+                    const ratio = jscad.pinchDist / dist; // >1 => move farther, <1 => move closer
+                    const delta = ratio - 1;
+                    if (Math.abs(delta) > 1e-4) {
+                        const zoom = orbit.zoom(
+                            { controls: jscad.controls, camera: jscad.camera, speed: Math.abs(delta) },
+                            Math.sign(delta)
+                        );
+                        Object.assign(jscad.controls, zoom.controls);
+                        Object.assign(jscad.camera, zoom.camera);
+                    }
+                }
+
+                jscad.pinchDist = dist;
+                jscad.pinchCenter = center;
+                renderScene();
+                return;
+            }
+
+            if (!jscad.pointer) return;
             event.preventDefault();
 
             const dx = event.clientX - jscad.pointer.x;
@@ -801,8 +871,28 @@
             renderScene();
         }
 
-        function onPointerUp() {
-            jscad.pointer = null;
+        function onPointerUp(event) {
+            if (event && jscad.pointers.has(event.pointerId)) {
+                jscad.pointers.delete(event.pointerId);
+            } else if (!event) {
+                jscad.pointers.clear();
+            }
+
+            if (jscad.pointers.size >= 2) {
+                // Still pinching with the remaining fingers; recompute the baseline.
+                beginPinch();
+                jscad.pointer = null;
+            } else if (jscad.pointers.size === 1) {
+                // Dropped from pinch back to a single finger: resume orbit from its position.
+                jscad.pinchDist = null;
+                jscad.pinchCenter = null;
+                const [p] = [...jscad.pointers.values()];
+                jscad.pointer = { x: p.x, y: p.y, pan: false };
+            } else {
+                jscad.pinchDist = null;
+                jscad.pinchCenter = null;
+                jscad.pointer = null;
+            }
         }
 
         function onWheel(event) {
