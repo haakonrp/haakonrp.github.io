@@ -244,6 +244,45 @@ function parseImport(text) {
   return { config: normalizeConfig(structuredClone(data)), name };
 }
 
+// ---------- Share via link (preset encoded in the URL hash) ----------
+// UTF-8-safe, URL-safe Base64 so exercise names with æøå etc. survive.
+function b64UrlEncode(str) {
+  const b64 = btoa(unescape(encodeURIComponent(str)));
+  return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function b64UrlDecode(str) {
+  let b64 = str.replace(/-/g, '+').replace(/_/g, '/');
+  while (b64.length % 4) b64 += '=';
+  return decodeURIComponent(escape(atob(b64)));
+}
+
+// Build a shareable absolute URL that encodes the given config in the hash.
+function buildShareLink(cfg, name) {
+  const json = JSON.stringify(configToExport(cfg, name));
+  const enc = b64UrlEncode(json);
+  const base = location.origin + location.pathname;
+  return `${base}#preset=${enc}`;
+}
+
+// If the current URL carries a shared preset, decode it. Returns
+// { config, name } or null. Throws nothing (invalid links return null).
+function readSharedPreset() {
+  const m = location.hash.match(/[#&]preset=([^&]+)/);
+  if (!m) return null;
+  try {
+    return parseImport(b64UrlDecode(m[1]));
+  } catch (e) {
+    return null;
+  }
+}
+
+// Remove the #preset=... from the address bar without reloading.
+function clearShareHash() {
+  if (location.hash.includes('preset=')) {
+    history.replaceState(null, '', location.origin + location.pathname + location.search);
+  }
+}
+
 // Copy text to clipboard with a fallback for non-secure contexts.
 async function copyToClipboard(text) {
   try {
@@ -267,21 +306,11 @@ async function copyToClipboard(text) {
   return false;
 }
 
-// Read text from clipboard, falling back to a prompt when the API is blocked.
-async function readClipboard() {
-  try {
-    if (navigator.clipboard && navigator.clipboard.readText && window.isSecureContext) {
-      const t = await navigator.clipboard.readText();
-      if (t) return t;
-    }
-  } catch (e) {}
-  return window.prompt('Paste preset JSON:') || '';
-}
-
 // ---------- State ----------
 let presets = migratePresets(loadPresets());
 let config = normalizeConfig(loadLast());
 let selectedPreset = ''; // name of the preset currently selected in the dropdown
+let pendingShareName = ''; // name from a shared link, used to pre-fill the save field once
 
 const view = document.getElementById('view');
 const actions = document.getElementById('actions');
@@ -302,9 +331,8 @@ const ICONS = {
   home: '<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline>',
   award: '<circle cx="12" cy="8" r="7"></circle><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.87"></polyline>',
   grip: '<circle cx="9" cy="6" r="1.3"></circle><circle cx="15" cy="6" r="1.3"></circle><circle cx="9" cy="12" r="1.3"></circle><circle cx="15" cy="12" r="1.3"></circle><circle cx="9" cy="18" r="1.3"></circle><circle cx="15" cy="18" r="1.3"></circle>',
-  copy: '<rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>',
-  paste: '<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>',
   check: '<polyline points="20 6 9 17 4 12"></polyline>',
+  share: '<circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>',
 };
 const FILLED = new Set(['play', 'pause', 'stop', 'next', 'prev', 'grip']);
 function icon(name, size = 18) {
@@ -583,7 +611,8 @@ function renderSetup() {
   nameInp.type = 'text';
   nameInp.className = 'preset-name';
   nameInp.placeholder = 'New preset name';
-  nameInp.value = selectedPreset || '';
+  nameInp.value = selectedPreset || pendingShareName || '';
+  pendingShareName = ''; // consumed on render
   const saveBtn = document.createElement('button');
   saveBtn.className = 'icon-btn preset-save';
   saveBtn.innerHTML = icon('save');
@@ -602,56 +631,44 @@ function renderSetup() {
   });
   saveRow.append(nameInp, saveBtn);
 
-  // ----- Import / Export current setup as JSON via clipboard -----
-  const ioRow = document.createElement('div');
-  ioRow.className = 'row-2 io-row';
-
-  const exportBtn = document.createElement('button');
-  exportBtn.className = 'btn secondary io-btn';
-  const exportLabel = '<span>Export</span>';
-  exportBtn.innerHTML = icon('copy') + exportLabel;
-  exportBtn.title = 'Copy this setup to clipboard as JSON';
-  let exportResetT = null;
-  exportBtn.onclick = async () => {
-    const json = JSON.stringify(configToExport(config, selectedPreset || nameInp.value.trim()), null, 2);
-    const ok = await copyToClipboard(json);
-    exportBtn.innerHTML = ok
-      ? icon('check') + '<span>Copied!</span>'
-      : icon('x') + '<span>Failed</span>';
-    exportBtn.classList.toggle('ok', ok);
-    clearTimeout(exportResetT);
-    exportResetT = setTimeout(() => {
-      exportBtn.innerHTML = icon('copy') + exportLabel;
-      exportBtn.classList.remove('ok');
+  // ----- Share current setup as a link -----
+  const shareBtn = document.createElement('button');
+  shareBtn.className = 'btn secondary io-btn share-btn';
+  const shareLabel = '<span>Share link</span>';
+  shareBtn.innerHTML = icon('share') + shareLabel;
+  shareBtn.title = 'Share this setup as a link';
+  let shareResetT = null;
+  const flashShare = (html, ok) => {
+    shareBtn.innerHTML = html;
+    shareBtn.classList.toggle('ok', !!ok);
+    clearTimeout(shareResetT);
+    shareResetT = setTimeout(() => {
+      shareBtn.innerHTML = icon('share') + shareLabel;
+      shareBtn.classList.remove('ok');
     }, 1600);
   };
-
-  const importBtn = document.createElement('button');
-  importBtn.className = 'btn secondary io-btn';
-  importBtn.innerHTML = icon('paste') + '<span>Import</span>';
-  importBtn.title = 'Load a setup from clipboard JSON';
-  importBtn.onclick = async () => {
-    const text = await readClipboard();
-    if (!text.trim()) return;
-    let parsed;
-    try {
-      parsed = parseImport(text);
-    } catch (e) {
-      alert("That doesn't look like a timer preset.");
-      return;
+  shareBtn.onclick = async () => {
+    const name = selectedPreset || nameInp.value.trim();
+    const url = buildShareLink(config, name);
+    const title = name ? `Circuit timer: ${name}` : 'Circuit timer preset';
+    // Prefer the native share sheet (great on mobile); fall back to clipboard.
+    if (navigator.share) {
+      try {
+        await navigator.share({ title, text: title, url });
+        return; // shared; leave the button label as-is
+      } catch (e) {
+        if (e && e.name === 'AbortError') return; // user cancelled
+        // otherwise fall through to clipboard
+      }
     }
-    config = parsed.config;
-    selectedPreset = '';
-    saveLast(config);
-    renderSetup();
-    if (parsed.name) {
-      const inp = actions.querySelector('.preset-name');
-      if (inp) inp.value = parsed.name;
-    }
+    const ok = await copyToClipboard(url);
+    flashShare(
+      ok ? icon('check') + '<span>Link copied!</span>' : icon('x') + '<span>Failed</span>',
+      ok
+    );
   };
 
-  ioRow.append(exportBtn, importBtn);
-  presetWrap.append(presetLbl, bar, saveRow, ioRow);
+  presetWrap.append(presetLbl, bar, saveRow, shareBtn);
 
   const back = document.createElement('a');
   back.className = 'back-link';
@@ -1107,4 +1124,23 @@ function escapeHtml(s) {
 })();
 
 // ---------- Boot ----------
+// Load a preset from a share link (#preset=...). Used both at startup and when
+// the hash changes while the app is already open (e.g. tapping a link to the
+// same page), since a hash-only change does not reload the page.
+function loadSharedPresetFromUrl() {
+  const shared = readSharedPreset();
+  if (!shared) return false;
+  config = shared.config;
+  selectedPreset = '';
+  pendingShareName = shared.name || '';
+  saveLast(config);
+  clearShareHash();
+  return true;
+}
+
+window.addEventListener('hashchange', () => {
+  if (loadSharedPresetFromUrl() && !runState) renderSetup();
+});
+
+loadSharedPresetFromUrl();
 renderSetup();
