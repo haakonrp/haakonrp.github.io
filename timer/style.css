@@ -2,6 +2,12 @@
 
 * { box-sizing: border-box; }
 
+/* Suppress double-tap-to-zoom and the tap delay on every element. touch-action
+   does not inherit, so this must apply to the actual tappable controls (run
+   buttons, inputs) too, not just html/body. The drag handle overrides this
+   with touch-action: none for pointer-based reordering. */
+* { touch-action: manipulation; }
+
 html, body {
   margin: 0;
   padding: 0;
@@ -9,7 +15,6 @@ html, body {
   color: #fafafa;
   font-family: "JetBrains Mono", monospace;
   -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation; /* suppress double-tap-to-zoom and tap delay */
 }
 
 body {
