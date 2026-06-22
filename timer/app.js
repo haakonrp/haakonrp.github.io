@@ -371,9 +371,9 @@ function renderSetup() {
   h1.textContent = 'Timing';
   view.appendChild(h1);
 
+  view.appendChild(numberField('Sets', 'rounds of all exercises', config.sets, 1, (v) => (config.sets = v)));
   view.appendChild(numberField('Warm up', 'seconds', config.warmup, 0, (v) => (config.warmup = v)));
   view.appendChild(numberField('Rest between exercises', 'seconds', config.restEx, 0, (v) => (config.restEx = v)));
-  view.appendChild(numberField('Sets', 'rounds of all exercises', config.sets, 1, (v) => (config.sets = v)));
   view.appendChild(numberField('Rest between sets', 'seconds', config.restSet, 0, (v) => (config.restSet = v)));
 
   updateTotal();
