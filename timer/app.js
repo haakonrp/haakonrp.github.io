@@ -266,8 +266,10 @@ function buildShareLink(cfg, name) {
 
 // If the current URL carries a shared preset, decode it. Returns
 // { config, name } or null. Throws nothing (invalid links return null).
+// Only Base64URL chars are captured, so a stray space/text appended by a
+// share target (e.g. "...#preset=ABC Some title") won't corrupt decoding.
 function readSharedPreset() {
-  const m = location.hash.match(/[#&]preset=([^&]+)/);
+  const m = location.hash.match(/[#&]preset=([A-Za-z0-9\-_]+)/);
   if (!m) return null;
   try {
     return parseImport(b64UrlDecode(m[1]));
@@ -652,9 +654,11 @@ function renderSetup() {
     const url = buildShareLink(config, name);
     const title = name ? `Circuit timer: ${name}` : 'Circuit timer preset';
     // Prefer the native share sheet (great on mobile); fall back to clipboard.
+    // Only pass `url` (not `text`) — some share targets concatenate text+url,
+    // which would append the title onto the link and corrupt it.
     if (navigator.share) {
       try {
-        await navigator.share({ title, text: title, url });
+        await navigator.share({ title, url });
         return; // shared; leave the button label as-is
       } catch (e) {
         if (e && e.name === 'AbortError') return; // user cancelled
