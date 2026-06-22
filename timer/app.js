@@ -89,6 +89,66 @@ function normalizeConfig(c) {
   return c;
 }
 
+// ---------- Import / Export (clipboard, JSON) ----------
+// Shape we write to the clipboard. `name` is optional and only used to
+// pre-fill the save field on import.
+function configToExport(cfg, name) {
+  const out = {
+    warmup: cfg.warmup,
+    restEx: cfg.restEx,
+    sets: cfg.sets,
+    restSet: cfg.restSet,
+    exercises: cfg.exercises.map((e) => ({ name: e.name, time: e.time })),
+  };
+  if (name) out.name = name;
+  return out;
+}
+
+// Accepts either a bare config or a {name, ...config} export. Returns
+// { config, name } or throws if the JSON has no recognisable exercises shape.
+function parseImport(text) {
+  const data = JSON.parse(text);
+  if (!data || typeof data !== 'object' || !Array.isArray(data.exercises)) {
+    throw new Error('Not a timer preset');
+  }
+  const name = typeof data.name === 'string' ? data.name : '';
+  return { config: normalizeConfig(structuredClone(data)), name };
+}
+
+// Copy text to clipboard with a fallback for non-secure contexts.
+async function copyToClipboard(text) {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch (e) {}
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  } catch (e) {}
+  return false;
+}
+
+// Read text from clipboard, falling back to a prompt when the API is blocked.
+async function readClipboard() {
+  try {
+    if (navigator.clipboard && navigator.clipboard.readText && window.isSecureContext) {
+      const t = await navigator.clipboard.readText();
+      if (t) return t;
+    }
+  } catch (e) {}
+  return window.prompt('Paste preset JSON:') || '';
+}
+
 // ---------- State ----------
 let presets = loadPresets();
 let config = normalizeConfig(loadLast());
@@ -113,6 +173,9 @@ const ICONS = {
   home: '<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline>',
   award: '<circle cx="12" cy="8" r="7"></circle><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.87"></polyline>',
   grip: '<circle cx="9" cy="6" r="1.3"></circle><circle cx="15" cy="6" r="1.3"></circle><circle cx="9" cy="12" r="1.3"></circle><circle cx="15" cy="12" r="1.3"></circle><circle cx="9" cy="18" r="1.3"></circle><circle cx="15" cy="18" r="1.3"></circle>',
+  copy: '<rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>',
+  paste: '<path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>',
+  check: '<polyline points="20 6 9 17 4 12"></polyline>',
 };
 const FILLED = new Set(['play', 'pause', 'stop', 'next', 'prev', 'grip']);
 function icon(name, size = 18) {
@@ -409,7 +472,57 @@ function renderSetup() {
     if (e.key === 'Enter') { e.preventDefault(); doSave(); }
   });
   saveRow.append(nameInp, saveBtn);
-  presetWrap.append(presetLbl, bar, saveRow);
+
+  // ----- Import / Export current setup as JSON via clipboard -----
+  const ioRow = document.createElement('div');
+  ioRow.className = 'row-2 io-row';
+
+  const exportBtn = document.createElement('button');
+  exportBtn.className = 'btn secondary io-btn';
+  const exportLabel = '<span>Export</span>';
+  exportBtn.innerHTML = icon('copy') + exportLabel;
+  exportBtn.title = 'Copy this setup to clipboard as JSON';
+  let exportResetT = null;
+  exportBtn.onclick = async () => {
+    const json = JSON.stringify(configToExport(config, selectedPreset || nameInp.value.trim()), null, 2);
+    const ok = await copyToClipboard(json);
+    exportBtn.innerHTML = ok
+      ? icon('check') + '<span>Copied!</span>'
+      : icon('x') + '<span>Failed</span>';
+    exportBtn.classList.toggle('ok', ok);
+    clearTimeout(exportResetT);
+    exportResetT = setTimeout(() => {
+      exportBtn.innerHTML = icon('copy') + exportLabel;
+      exportBtn.classList.remove('ok');
+    }, 1600);
+  };
+
+  const importBtn = document.createElement('button');
+  importBtn.className = 'btn secondary io-btn';
+  importBtn.innerHTML = icon('paste') + '<span>Import</span>';
+  importBtn.title = 'Load a setup from clipboard JSON';
+  importBtn.onclick = async () => {
+    const text = await readClipboard();
+    if (!text.trim()) return;
+    let parsed;
+    try {
+      parsed = parseImport(text);
+    } catch (e) {
+      alert("That doesn't look like a timer preset.");
+      return;
+    }
+    config = parsed.config;
+    selectedPreset = '';
+    saveLast(config);
+    renderSetup();
+    if (parsed.name) {
+      const inp = actions.querySelector('.preset-name');
+      if (inp) inp.value = parsed.name;
+    }
+  };
+
+  ioRow.append(exportBtn, importBtn);
+  presetWrap.append(presetLbl, bar, saveRow, ioRow);
 
   const back = document.createElement('a');
   back.className = 'back-link';

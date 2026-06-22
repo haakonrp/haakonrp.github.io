@@ -367,6 +367,12 @@ body.is-reordering, body.is-reordering * {
 .icon-btn.preset-save { color: #6aa84f; border-color: #3a3a3a; }
 .icon-btn.preset-save:active { background: #2f3a28; }
 
+/* Import / Export buttons */
+.io-row { margin-top: 0.1rem; }
+.io-btn { font-size: 0.85rem; padding: 0.7rem; font-weight: 600; letter-spacing: 0.04em; }
+.io-btn .ic { width: 16px; height: 16px; }
+.io-btn.ok { color: #6aa84f; border-color: #3a4a30; }
+
 /* ===== Run view (full-screen phase colors) ===== */
 body.is-running { transition: background-color 0.25s ease; }
 body.is-running .topbar { border-bottom-color: rgba(255, 255, 255, 0.15); }
