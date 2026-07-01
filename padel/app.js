@@ -426,31 +426,43 @@
       }
     }
     scores.sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
+    // Assign competition ranking (1224): tied points share a rank, next rank skips.
+    scores.forEach((s, i) => {
+      s.rank = (i > 0 && s.points === scores[i - 1].points) ? scores[i - 1].rank : i + 1;
+    });
     return scores;
   }
 
   function renderPodium(standings) {
-    // Order on display: 2nd, 1st, 3rd (silver, gold, bronze)
-    const top3 = standings.slice(0, 3);
-    if (top3.length < 2) return null;
+    // Group players by their (shared) rank, then show podium ranks 1,2,3.
+    // Tied players share a step (e.g. two 1st-placers both stand on gold).
+    if (standings.length < 2) return null;
+    const byRank = new Map();
+    for (const s of standings) {
+      if (!byRank.has(s.rank)) byRank.set(s.rank, []);
+      byRank.get(s.rank).push(s);
+    }
+    const medal = { 1: '🥇', 2: '🥈', 3: '🥉' };
     const podium = el('div', { class: 'podium' });
-    const order = [
-      { rank: 2, place: 'left' },
-      { rank: 1, place: 'center' },
-      { rank: 3, place: 'right' },
-    ];
-    for (const o of order) {
-      const s = top3[o.rank - 1];
-      if (!s) {
-        podium.appendChild(el('div', { class: 'podium-col empty' }));
+    // Display order across the 3 columns: 2nd (left), 1st (center), 3rd (right).
+    const order = [2, 1, 3];
+    for (const rank of order) {
+      const players = byRank.get(rank);
+      if (!players) {
+        // Keep the pedestal visible but empty (e.g. no 2nd place after a tie for 1st).
+        const col = el('div', { class: `podium-col p${rank} vacant` });
+        col.appendChild(el('div', { class: 'p-block' }, String(rank)));
+        podium.appendChild(col);
         continue;
       }
-      const col = el('div', { class: `podium-col p${o.rank}` });
-      col.appendChild(el('div', { class: 'medal' },
-        o.rank === 1 ? '🥇' : o.rank === 2 ? '🥈' : '🥉'));
-      col.appendChild(el('div', { class: 'p-name' }, s.name));
-      col.appendChild(el('div', { class: 'p-pts' }, `${s.points} pts`));
-      col.appendChild(el('div', { class: 'p-block' }, String(o.rank)));
+      const col = el('div', { class: `podium-col p${rank}` });
+      // One medal per player, so a tie shows e.g. 🥇🥇.
+      col.appendChild(el('div', { class: 'medal' }, medal[rank].repeat(players.length)));
+      for (const s of players) {
+        col.appendChild(el('div', { class: 'p-name' }, s.name));
+      }
+      col.appendChild(el('div', { class: 'p-pts' }, `${players[0].points} pts`));
+      col.appendChild(el('div', { class: 'p-block' }, String(rank)));
       podium.appendChild(col);
     }
     return podium;
@@ -472,9 +484,9 @@
       el('th', { class: 'num' }, 'Pts')));
     table.appendChild(thead);
     const tbody = el('tbody');
-    standings.forEach((s, idx) => {
+    standings.forEach((s) => {
       tbody.appendChild(el('tr', {},
-        el('td', { class: 'rank' }, String(idx + 1)),
+        el('td', { class: 'rank' }, String(s.rank)),
         el('td', {}, s.name),
         el('td', { class: 'num' }, String(s.points))));
     });

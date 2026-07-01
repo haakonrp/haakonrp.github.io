@@ -282,6 +282,10 @@ h2 {
 
 .podium-col.empty { visibility: hidden; }
 
+/* A pedestal with no player on it (e.g. no 2nd place after a tie for 1st). */
+.podium-col.vacant { justify-content: flex-end; }
+.podium-col.vacant .p-block { opacity: 0.35; }
+
 .podium-col .medal {
   font-size: 1.8rem;
   line-height: 1;
