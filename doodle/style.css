@@ -571,17 +571,30 @@ button.cal-cell.vc.v-maybe .vc-mark { color: #201700; }
 .grid tr:last-child th,
 .grid tr:last-child td { border-bottom: none; }
 
-/* sticky first column (the date) so it stays visible while scrolling names */
+/* Two sticky left columns — the date and the count — stay visible while the
+   voter columns scroll. The date is pinned to the edge; the count sits right
+   after it at a fixed offset (so we give the date a fixed width to match). */
 .grid th.corner,
 .grid th.date {
   position: sticky;
   left: 0;
   z-index: 2;
+  width: 4.5rem;
+  min-width: 4.5rem;
   background: #242424;
   text-align: left;
+  border-right: none;
+}
+.grid th.sum-h,
+.grid td.sum {
+  position: sticky;
+  left: 4.5rem;
+  z-index: 2;
+  background: #242424;
   border-right: 1px solid #333;
 }
-.grid thead th.corner { z-index: 3; }
+.grid thead th.corner,
+.grid thead th.sum-h { z-index: 3; }
 
 .grid thead th {
   position: sticky;
@@ -604,7 +617,17 @@ button.cal-cell.vc.v-maybe .vc-mark { color: #201700; }
   text-overflow: ellipsis;
   vertical-align: bottom;
 }
-.grid th.sum-h { color: #6aa84f; }
+/* the ✓ column header: match the brighter, bolder ✓ used in the cells/legend
+   (the generic header style makes it small, dim and thin, which looks off) */
+.grid th.sum-h {
+  color: #8bcf6f;
+  text-align: left;
+  padding-left: 0.2rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: 0;
+}
 
 .grid th.corner {
   font-size: 0.68rem;
@@ -630,25 +653,31 @@ button.cal-cell.vc.v-maybe .vc-mark { color: #201700; }
 .grid td.c-no    { color: #555; }
 
 .grid tr.best th.date { background: #26311f; }
+.grid tr.best td.sum { background: #26311f; }
 .grid tr.best td { background: rgba(106,168,79,0.07); }
 .grid tr.best td.c-yes { background: rgba(106,168,79,0.16); }
 
+/* count cell: yes total with a maybe "+n" beside it, laid out inline so the
+   "+n" can never get pushed out of (or clipped by) the cell.
+   Bottom-left aligned so the number lines up with the bold date beside it
+   (same 0.5rem bottom padding as .grid th.date) and sits close to the date. */
 .grid td.sum {
-  background: #242424;
   font-size: 0.85rem;
-  position: relative;   /* anchor the maybe suffix */
+  width: 2.4rem;
+  min-width: 2.4rem;
+  text-align: left;
+  vertical-align: bottom;
+  padding: 0.5rem 0.3rem 0.5rem 0.2rem;
+}
+.grid td.sum .s-yes,
+.grid td.sum .s-maybe {
+  display: inline;
 }
 .grid .s-yes   { color: #8bcf6f; font-weight: 700; }
-/* keep the yes-count centred with the rows above/below; the maybe "+n" sits
-   just after it without shifting the number off-centre */
 .grid .s-maybe {
   color: #e6c34e;
   font-size: 0.72rem;
-  position: absolute;
-  left: 50%;
-  margin-left: 0.6rem;
-  top: 50%;
-  transform: translateY(-50%);
+  margin-left: 0.15rem;
 }
 
 /* legend under the grid */

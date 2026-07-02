@@ -735,18 +735,20 @@
     const wrap = el("div", "grid-wrap");
     const table = el("table", "grid");
 
-    // header row: names
+    // header row: date, count, then names
     const thead = el("thead");
     const hr = el("tr");
     hr.appendChild(el("th", "corner", "Date"));
+    // Count column sits right after the date (and stays put while names scroll)
+    // so the totals are visible without swiping to the far right.
+    const sumTh = el("th", "sum-h", "✓");
+    sumTh.title = "yes / maybe count";
+    hr.appendChild(sumTh);
     for (const name of voters) {
       const th = el("th", "name");
       th.appendChild(el("span", null, name));
       hr.appendChild(th);
     }
-    const sumTh = el("th", "name sum-h", "✓");
-    sumTh.title = "yes / maybe count";
-    hr.appendChild(sumTh);
     thead.appendChild(hr);
     table.appendChild(thead);
 
@@ -761,19 +763,19 @@
       dcell.appendChild(el("span", "d-day", `${s.day} ${s.mon}`));
       tr.appendChild(dcell);
 
+      // Count right after the date: yes total, with a maybe "+n" beside it.
+      const t = tally[i];
+      const sum = el("td", "sum");
+      sum.appendChild(el("span", "s-yes", String(t.yes)));
+      if (t.maybe) sum.appendChild(el("span", "s-maybe", `+${t.maybe}`));
+      tr.appendChild(sum);
+
       for (const name of voters) {
         const v = voteAt(poll.v[name], i);
         const td = el("td", "cell " + (v === YES ? "c-yes" : v === MAYBE ? "c-maybe" : "c-no"));
         td.textContent = v === YES ? "✓" : v === MAYBE ? "~" : "✗";
         tr.appendChild(td);
       }
-
-      const t = tally[i];
-      const sum = el("td", "cell sum");
-      sum.innerHTML =
-        `<span class="s-yes">${t.yes}</span>` +
-        (t.maybe ? `<span class="s-maybe">+${t.maybe}</span>` : "");
-      tr.appendChild(sum);
 
       tbody.appendChild(tr);
     });
