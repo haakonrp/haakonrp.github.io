@@ -671,7 +671,7 @@
     // shared (everything lives in the URL). Auto-copy so it's ready to paste.
     if (opts.justSaved) {
       const notice = el("div", "save-notice");
-      notice.appendChild(el("div", "save-notice-title", "✓ Saved, now share your link!"));
+      notice.appendChild(el("div", "save-notice-title", "Saved! Now share your link"));
       notice.appendChild(el("div", "save-notice-sub",
         "Your votes are stored in the link — send it back to the group so they're not lost."));
       const copyBtn = el("button", "btn primary", "Share poll link");
