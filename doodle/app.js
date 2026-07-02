@@ -165,20 +165,11 @@
   // ---------- default candidate nights ----------
   // Pre-fill with the Fridays & Saturdays of August (weekend overnights),
   // since the goal is a weekend-ish overnight trip.
-  function defaultAugustNights() {
+  // Sensible defaults for a brand-new poll: current month/year, nothing
+  // selected yet — the user picks the nights themselves.
+  function defaultStart() {
     const now = new Date();
-    // If we're already past August, plan for next year's August.
-    const year = now.getMonth() > 7 ? now.getFullYear() + 1 : now.getFullYear();
-    const nights = [];
-    for (let day = 1; day <= 31; day++) {
-      const d = new Date(year, 7, day); // month 7 = August
-      if (d.getMonth() !== 7) break;
-      const dow = d.getDay();
-      if (dow === 5 || dow === 6) { // Fri or Sat
-        nights.push(`08-${String(day).padStart(2, "0")}`);
-      }
-    }
-    return { year, nights };
+    return { year: now.getFullYear(), month: now.getMonth() }; // month 0-11
   }
 
   // ===========================================================================
@@ -188,8 +179,8 @@
     clear();
     setHeader("doodle", "create a poll to find the best night");
 
-    const def = defaultAugustNights();
-    const poll = existing || { t: "", y: def.year, d: def.nights.slice(), v: {} };
+    const def = defaultStart();
+    const poll = existing || { t: "", y: def.year, d: [], v: {} };
 
     // --- title ---
     const titleField = el("div", "field");
@@ -205,10 +196,11 @@
     const calField = el("div", "field");
     calField.appendChild(el("label", null, "Pick the nights — tap a day"));
 
-    // The month currently shown in the picker (defaults to the poll's month).
+    // The month currently shown in the picker: the poll's first night if any,
+    // otherwise the current month.
     let viewMonth = poll.d.length
       ? toDate(poll.y, poll.d[0]).getMonth()
-      : 7; // August
+      : def.month;
     let viewYear = poll.y;
 
     const cal = el("div", "cal");
