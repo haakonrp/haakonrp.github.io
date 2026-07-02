@@ -611,7 +611,6 @@
     const url = pollUrl(poll);
     const shareData = {
       title: poll.t || "Overnight trip",
-      text: "When can you make it? Mark your availability:",
       url,
     };
     // Prefer the OS share sheet (WhatsApp, Messages, Mail, …) when available.
