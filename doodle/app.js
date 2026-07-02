@@ -235,6 +235,9 @@
   function clear() {
     view.innerHTML = "";
     actions.innerHTML = "";
+    // Each screen change starts from the top so headers/notices are visible
+    // (e.g. the "now share your link" reminder after saving a vote).
+    window.scrollTo(0, 0);
   }
 
   function setHeader(title, subtitle) {
@@ -668,10 +671,10 @@
     // shared (everything lives in the URL). Auto-copy so it's ready to paste.
     if (opts.justSaved) {
       const notice = el("div", "save-notice");
-      notice.appendChild(el("div", "save-notice-title", "Saved ✓ now share your link"));
+      notice.appendChild(el("div", "save-notice-title", "✓ Saved, now share your link!"));
       notice.appendChild(el("div", "save-notice-sub",
-        "Your votes live in the link — send it back to the group so they're not lost."));
-      const copyBtn = el("button", "btn primary", "Copy & share link");
+        "Your votes are stored in the link — send it back to the group so they're not lost."));
+      const copyBtn = el("button", "btn primary", "Share poll link");
       copyBtn.addEventListener("click", () => sharePoll(poll, copyBtn));
       notice.appendChild(copyBtn);
       view.appendChild(notice);
@@ -796,6 +799,10 @@
 
     const newBtn = el("button", "btn ghost", "New poll");
     newBtn.addEventListener("click", () => {
+      if (!confirm("Start a new poll? This clears the current one from the screen. " +
+        "Make sure you've shared this poll's link first — you can reopen it from that link.")) {
+        return;
+      }
       history.replaceState(null, "", location.pathname);
       renderCreate(null);
     });
