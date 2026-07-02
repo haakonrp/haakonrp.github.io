@@ -314,6 +314,15 @@ button.cal-cell.vc.v-maybe .vc-mark { color: #201700; }
 .vote-legend { flex-wrap: wrap; margin: 0.75rem 0 0; }
 .vote-legend .dim { color: #666; }
 
+/* compact "Mark all Yes / Clear all" shortcut under the legend */
+.btn.bulk-btn {
+  display: inline-block;
+  width: auto;
+  margin: 0.75rem 0 0.25rem;
+  padding: 0.5rem 0.9rem;
+  font-size: 0.8rem;
+}
+
 @media (max-width: 380px) {
   .cal-cell { font-size: 0.8rem; }
   .cal-cell.cand .cal-tag { font-size: 0.5rem; }

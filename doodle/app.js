@@ -318,7 +318,7 @@
   // ===========================================================================
   function renderVote(poll) {
     clear();
-    setHeader(poll.t || "doodle", "tap the nights that work for you");
+    setHeader(poll.t || "doodle", "tap the dates that work for you");
 
     const len = poll.d.length;
 
@@ -338,11 +338,25 @@
     // Working copy of this person's votes (pre-fill if they already voted).
     let myVotes = (savedName && poll.v[savedName]) || emptyVotes(len);
 
-    // When the typed name matches an existing voter, load their answers.
+    // When the typed name matches someone who ALREADY voted, load their
+    // answers so they can edit. Otherwise keep whatever this person has
+    // already selected — don't wipe it just because the name isn't saved yet.
+    let lastLoadedName = savedName;
     nameInput.addEventListener("input", () => {
       const n = nameInput.value.trim();
-      myVotes = (n && poll.v[n]) || emptyVotes(len);
-      paintRows();
+      if (n && poll.v[n]) {
+        myVotes = poll.v[n];
+        lastLoadedName = n;
+        paintRows();
+      } else if (lastLoadedName && poll.v[lastLoadedName]) {
+        // We had loaded an existing voter's answers, but the name was edited
+        // away from that match — start fresh rather than keep their votes.
+        myVotes = emptyVotes(len);
+        lastLoadedName = "";
+        paintRows();
+      }
+      // else: name is new/unknown and nothing was previously loaded —
+      // leave the current selections untouched.
     });
 
     // --- calendar: tap candidate nights to cycle Yes / Maybe / No ---
@@ -355,8 +369,23 @@
       '<span class="lg"><b class="c-yes">✓</b> yes</span>' +
       '<span class="lg"><b class="c-maybe">~</b> maybe</span>' +
       '<span class="lg"><b class="c-no">·</b> no</span>' +
-      '<span class="lg dim">tap a day to change</span>';
+      '<span class="lg dim">tap once = yes, again = maybe, again = no</span>';
     view.appendChild(legend);
+
+    // Quick shortcut: mark every night Yes at once (or clear back to No when
+    // everything is already Yes). Handy for "I'm free most nights" voters.
+    const bulkBtn = el("button", "btn ghost bulk-btn");
+    bulkBtn.type = "button";
+    view.appendChild(bulkBtn);
+
+    const allYes = () => len > 0 && myVotes === "2".repeat(len);
+    function updateBulkBtn() {
+      bulkBtn.textContent = allYes() ? "Clear all" : "Mark all Yes";
+    }
+    bulkBtn.addEventListener("click", () => {
+      myVotes = (allYes() ? "0" : "2").repeat(len);
+      paintRows();
+    });
 
     // Map "MM-DD" -> candidate index, and which months to show.
     const idxOf = {};
@@ -371,6 +400,7 @@
       const next = CYCLE[(CYCLE.indexOf(cur) + 1) % CYCLE.length];
       myVotes = withVote(myVotes, i, next, len);
       paintCell(i);
+      updateBulkBtn();
     }
 
     function paintCell(i) {
@@ -384,6 +414,7 @@
     }
     function paintRows() { // (name kept: called by the name-input handler)
       for (let i = 0; i < len; i++) paintCell(i);
+      updateBulkBtn();
     }
 
     function drawVoteCalendars() {
