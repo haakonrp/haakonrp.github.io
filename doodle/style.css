@@ -48,7 +48,7 @@ body {
 }
 
 main {
-  flex: 1;
+  flex: 0 1 auto;
   padding: 1rem 0;
 }
 
@@ -274,6 +274,45 @@ button.cal-cell.sel {
   border-color: #8bcf6f;
   box-shadow: 0 0 0 1px #8bcf6f inset;
 }
+
+/* vote calendar: tappable candidate day that cycles yes/maybe/no */
+button.cal-cell.vc {
+  background: #2b2b2b;
+  border-color: #3a3a3a;
+  color: #fafafa;
+  font-family: inherit;
+  cursor: pointer;
+  flex-direction: column;
+  gap: 0.05rem;
+  position: relative;
+}
+button.cal-cell.vc:active { transform: scale(0.96); }
+button.cal-cell.vc .cal-day { font-size: 0.9rem; font-weight: 700; }
+button.cal-cell.vc .vc-mark {
+  font-size: 0.75rem;
+  line-height: 1;
+  font-weight: 700;
+}
+button.cal-cell.vc.v-no {
+  background: #2a2a2a;
+  border-color: #3a3a3a;
+}
+button.cal-cell.vc.v-no .vc-mark { color: #666; }
+button.cal-cell.vc.v-yes {
+  background: #6aa84f;
+  border-color: #6aa84f;
+  color: #0c1a06;
+}
+button.cal-cell.vc.v-yes .vc-mark { color: #0c1a06; }
+button.cal-cell.vc.v-maybe {
+  background: #d4af37;
+  border-color: #d4af37;
+  color: #201700;
+}
+button.cal-cell.vc.v-maybe .vc-mark { color: #201700; }
+
+.vote-legend { flex-wrap: wrap; margin: 0.75rem 0 0; }
+.vote-legend .dim { color: #666; }
 
 @media (max-width: 380px) {
   .cal-cell { font-size: 0.8rem; }

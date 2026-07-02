@@ -307,7 +307,7 @@
     // --- actions ---
     const createBtn = el("button", "btn primary", existing ? "Save changes" : "Create poll");
     createBtn.addEventListener("click", () => {
-      poll.t = titleInput.value.trim() || "Overnight trip";
+      poll.t = titleInput.value.trim() || "doodle";
       if (!poll.d.length) {
         calField.classList.add("shake");
         setTimeout(() => calField.classList.remove("shake"), 400);
@@ -326,7 +326,7 @@
   // ===========================================================================
   function renderVote(poll) {
     clear();
-    setHeader(poll.t || "Overnight trip", "tap each night: Yes · Maybe · No");
+    setHeader(poll.t || "doodle", "tap the nights that work for you");
 
     const len = poll.d.length;
 
@@ -353,41 +353,89 @@
       paintRows();
     });
 
-    // --- date rows ---
-    const rows = el("div", "vote-rows");
-    view.appendChild(rows);
+    // --- calendar: tap candidate nights to cycle Yes / Maybe / No ---
+    const calWrap = el("div", "votecal");
+    view.appendChild(calWrap);
 
-    const labelFor = { 0: "No", 1: "Maybe", 2: "Yes" };
-    const rowEls = [];
+    // Legend so the colours are self-explanatory.
+    const legend = el("div", "legend vote-legend");
+    legend.innerHTML =
+      '<span class="lg"><b class="c-yes">✓</b> yes</span>' +
+      '<span class="lg"><b class="c-maybe">~</b> maybe</span>' +
+      '<span class="lg"><b class="c-no">·</b> no</span>' +
+      '<span class="lg dim">tap a day to change</span>';
+    view.appendChild(legend);
 
-    poll.d.forEach((md, i) => {
-      const row = el("button", "vote-row");
-      const info = el("div", "vote-info");
-      info.appendChild(el("div", "vote-label", nightLabel(poll.y, md)));
-      row.appendChild(info);
-      const badge = el("div", "vote-badge");
-      row.appendChild(badge);
-      row.addEventListener("click", () => {
-        const cur = voteAt(myVotes, i);
-        const next = CYCLE[(CYCLE.indexOf(cur) + 1) % CYCLE.length];
-        myVotes = withVote(myVotes, i, next, len);
-        paintRow(i);
-      });
-      rows.appendChild(row);
-      rowEls.push({ row, badge });
-    });
+    // Map "MM-DD" -> candidate index, and which months to show.
+    const idxOf = {};
+    poll.d.forEach((md, i) => { idxOf[md] = i; });
+    const months = [...new Set(poll.d.map(md => Number(md.slice(0, 2)) - 1))].sort((a, b) => a - b);
 
-    function paintRow(i) {
+    // Keep references to each candidate cell so we can repaint on change.
+    const cellByIdx = {};
+
+    function cycle(i) {
+      const cur = voteAt(myVotes, i);
+      const next = CYCLE[(CYCLE.indexOf(cur) + 1) % CYCLE.length];
+      myVotes = withVote(myVotes, i, next, len);
+      paintCell(i);
+    }
+
+    function paintCell(i) {
+      const cell = cellByIdx[i];
+      if (!cell) return;
       const v = voteAt(myVotes, i);
-      const { row, badge } = rowEls[i];
-      row.classList.remove("v-yes", "v-maybe", "v-no");
-      row.classList.add(v === YES ? "v-yes" : v === MAYBE ? "v-maybe" : "v-no");
-      badge.textContent = labelFor[v];
+      cell.classList.remove("v-yes", "v-maybe", "v-no");
+      cell.classList.add(v === YES ? "v-yes" : v === MAYBE ? "v-maybe" : "v-no");
+      const mark = cell.querySelector(".vc-mark");
+      mark.textContent = v === YES ? "✓" : v === MAYBE ? "~" : "·";
     }
-    function paintRows() {
-      for (let i = 0; i < len; i++) paintRow(i);
+    function paintRows() { // (name kept: called by the name-input handler)
+      for (let i = 0; i < len; i++) paintCell(i);
     }
-    paintRows();
+
+    function drawVoteCalendars() {
+      calWrap.innerHTML = "";
+      for (const month of months) {
+        const cal = el("div", "cal cal-result");
+
+        const head = el("div", "cal-head static");
+        head.appendChild(el("div", "cal-title", `${MONTHS[month]} ${poll.y}`));
+        cal.appendChild(head);
+
+        const dow = el("div", "cal-dow");
+        ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].forEach(d =>
+          dow.appendChild(el("span", null, d)));
+        cal.appendChild(dow);
+
+        const grid = el("div", "cal-grid");
+        const { weeks } = monthGrid(poll.y, month);
+        for (const week of weeks) {
+          for (const day of week) {
+            if (day == null) { grid.appendChild(el("div", "cal-cell blank")); continue; }
+            const md = mdOf(month, day);
+            const i = idxOf[md];
+            if (i === undefined) {
+              // Not a candidate night — faint, non-interactive.
+              grid.appendChild(el("div", "cal-cell off", String(day)));
+              continue;
+            }
+            const cell = el("button", "cal-cell vc");
+            cell.type = "button";
+            cell.appendChild(el("span", "cal-day", String(day)));
+            cell.appendChild(el("span", "vc-mark"));
+            cell.title = nightLabel(poll.y, md);
+            cell.addEventListener("click", () => cycle(i));
+            cellByIdx[i] = cell;
+            grid.appendChild(cell);
+          }
+        }
+        cal.appendChild(grid);
+        calWrap.appendChild(cal);
+      }
+      paintRows();
+    }
+    drawVoteCalendars();
 
     // --- actions ---
     const saveBtn = el("button", "btn primary", "Save my availability");
@@ -481,7 +529,7 @@
   function renderResults(poll) {
     clear();
     const voters = Object.keys(poll.v);
-    setHeader(poll.t || "Overnight trip",
+    setHeader(poll.t || "doodle",
       voters.length
         ? `${voters.length} ${voters.length === 1 ? "person has" : "people have"} voted`
         : "no votes yet — be the first!");
@@ -515,9 +563,16 @@
     // --- winner banner ---
     if (bestIdx.size) {
       const banner = el("div", "winner");
-      const names = [...bestIdx].map(i => nightLabel(poll.y, poll.d[i]));
-      banner.appendChild(el("div", "winner-tag", bestIdx.size > 1 ? "Top nights" : "Best night"));
-      banner.appendChild(el("div", "winner-date", names.join("  ·  ")));
+      const idxs = [...bestIdx];
+      const single = idxs.length === 1;
+      banner.appendChild(el("div", "winner-tag",
+        single ? "Best night" : `Top nights · ${idxs.length} tied`));
+      // Don't dump a huge list — show a few, then summarise the rest.
+      const MAX = 3;
+      const shown = idxs.slice(0, MAX).map(i => nightLabel(poll.y, poll.d[i]));
+      let text = shown.join("  ·  ");
+      if (idxs.length > MAX) text += `  ·  +${idxs.length - MAX} more`;
+      banner.appendChild(el("div", "winner-date", text));
       view.appendChild(banner);
     }
 
@@ -610,7 +665,7 @@
     setHash(poll);
     const url = pollUrl(poll);
     const shareData = {
-      title: poll.t || "Overnight trip",
+      title: poll.t || "doodle",
       url,
     };
     // Prefer the OS share sheet (WhatsApp, Messages, Mail, …) when available.
