@@ -57,24 +57,27 @@
     return obj;
   }
 
-  function readPoll() {
-    const hash = location.hash;
-    // Preferred compact format: "#z=" (LZ-string compressed).
-    let m = hash.match(/[#&]z=([^&]+)/);
+  // Decode a poll from any string that contains a "#z=" (compressed) or
+  // "#p=" (legacy base64) payload — a full URL, a bare hash, or just the token.
+  function decodePoll(str) {
+    if (!str) return null;
+    let m = str.match(/[#&?]?z=([A-Za-z0-9+\-$_.]+)/);
     if (m && hasLZ) {
       try {
         const json = LZString.decompressFromEncodedURIComponent(m[1]);
         if (json) return normalizePoll(JSON.parse(json));
       } catch { /* fall through */ }
     }
-    // Legacy format: "#p=" (plain base64) — still readable for old links.
-    m = hash.match(/[#&]p=([^&]+)/);
+    m = str.match(/[#&?]?p=([A-Za-z0-9\-_]+)/);
     if (m) {
-      try {
-        return normalizePoll(JSON.parse(b64decode(m[1])));
-      } catch { return null; }
+      try { return normalizePoll(JSON.parse(b64decode(m[1]))); }
+      catch { return null; }
     }
     return null;
+  }
+
+  function readPoll() {
+    return decodePoll(location.hash);
   }
 
   function pollToHash(poll) {
@@ -90,6 +93,43 @@
   // Replace the hash without adding a browser-history entry per keystroke.
   function setHash(poll) {
     history.replaceState(null, "", pollToHash(poll));
+  }
+
+  // ---------- merging links from other people ----------
+  // Because votes travel in the URL, when several people fill in the SAME link
+  // independently you end up with several links that each know about only one
+  // voter. This merges those links back together: votes are keyed by name, so
+  // we just fold each pasted poll's voters into the current one.
+  function samePollDates(a, b) {
+    if (a.d.length !== b.d.length) return false;
+    const sa = [...a.d].sort().join(","), sb = [...b.d].sort().join(",");
+    return sa === sb && a.y === b.y;
+  }
+
+  // Parse any number of links out of a blob of pasted text.
+  function extractLinks(text) {
+    if (!text) return [];
+    // Split on whitespace/newlines; keep tokens that look like they carry a poll.
+    return text.split(/\s+/).filter(t => /[#&?]?[zp]=/.test(t));
+  }
+
+  // Merge every valid, same-poll link found in `text` into `poll`.
+  // Returns { added, updated, skipped, mismatched }.
+  function mergeLinks(poll, text) {
+    const res = { added: 0, updated: 0, skipped: 0, mismatched: 0 };
+    const links = extractLinks(text);
+    if (!links.length) { res.skipped = -1; return res; } // signal: nothing parseable
+    for (const link of links) {
+      const other = decodePoll(link);
+      if (!other) { res.skipped++; continue; }
+      if (!samePollDates(poll, other)) { res.mismatched++; continue; }
+      for (const [name, votes] of Object.entries(other.v)) {
+        if (!name) continue;
+        if (poll.v[name] === undefined) { poll.v[name] = votes; res.added++; }
+        else if (poll.v[name] !== votes) { poll.v[name] = votes; res.updated++; } // last paste wins
+      }
+    }
+    return res;
   }
 
   // ---------- persistence & "unshared changes" safety net ----------
@@ -772,7 +812,77 @@
     actions.appendChild(newBtn);
     actions.appendChild(voteBtn);
     actions.appendChild(shareBtn);
+
+    // Combine links others sent back — placed below the Share button.
+    renderMergeBox(poll);
   }
+
+  // Collapsible box for folding in links other people sent back.
+  function renderMergeBox(poll) {
+    const box = el("div", "merge");
+
+    const toggle = el("button", "merge-toggle");
+    toggle.type = "button";
+    toggle.innerHTML = '<span>＋ Combine links from others</span>';
+    box.appendChild(toggle);
+
+    const body = el("div", "merge-body");
+    body.hidden = true;
+    body.appendChild(el("p", "merge-hint",
+      "Got links back from people who voted separately? Paste them here " +
+      "(one per line) to combine everyone's answers."));
+
+    const ta = el("textarea", "merge-input");
+    ta.rows = 3;
+    ta.placeholder = "Paste one or more poll links…";
+    body.appendChild(ta);
+
+    const go = el("button", "btn small", "Combine");
+    body.appendChild(go);
+
+    const status = el("div", "merge-status");
+    body.appendChild(status);
+
+    toggle.addEventListener("click", () => {
+      body.hidden = !body.hidden;
+      toggle.classList.toggle("open", !body.hidden);
+      if (!body.hidden) ta.focus();
+    });
+
+    go.addEventListener("click", () => {
+      const r = mergeLinks(poll, ta.value);
+      status.classList.remove("ok", "warn");
+      if (r.skipped === -1) {
+        status.textContent = "No poll links found in that text.";
+        status.classList.add("warn");
+        return;
+      }
+      const changed = r.added + r.updated;
+      if (changed > 0) {
+        setHash(poll);
+        saveLastPoll(poll);
+        const parts = [];
+        if (r.added) parts.push(`${r.added} new vote${r.added === 1 ? "" : "s"}`);
+        if (r.updated) parts.push(`${r.updated} updated`);
+        let msg = "Combined " + parts.join(" and ") + ".";
+        if (r.mismatched) msg += ` (${r.mismatched} link${r.mismatched === 1 ? "" : "s"} were for a different poll — skipped.)`;
+        status.textContent = msg;
+        status.classList.add("ok");
+        // Re-render so the grid/calendar reflect the merged votes.
+        setTimeout(() => renderResults(poll), 700);
+      } else if (r.mismatched) {
+        status.textContent = `Those links are for a different poll (different dates) — nothing merged.`;
+        status.classList.add("warn");
+      } else {
+        status.textContent = "Nothing new to add — those votes are already here.";
+        status.classList.add("warn");
+      }
+    });
+
+    box.appendChild(body);
+    actions.appendChild(box);
+  }
+
 
   // ---------- sharing ----------
   async function sharePoll(poll, btn) {

@@ -448,6 +448,61 @@ button.cal-cell.vc.v-maybe .vc-mark { color: #201700; }
 }
 .restore .btn { flex: 0 0 auto; }
 
+/* "Combine links from others" box on the results screen */
+.merge {
+  margin: 0.5rem 0 0;
+  border: 1px solid #333;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.merge-toggle {
+  width: 100%;
+  background: #262626;
+  border: none;
+  color: #cfcfcf;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: left;
+  padding: 0.8rem 0.9rem;
+  cursor: pointer;
+}
+.merge-toggle:active { background: #2c2c2c; }
+.merge-toggle.open { color: #fafafa; border-bottom: 1px solid #333; }
+.merge-body {
+  padding: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.merge-hint {
+  margin: 0;
+  font-size: 0.76rem;
+  color: #999;
+  line-height: 1.45;
+}
+.merge-input {
+  width: 100%;
+  background: #1c1c1c;
+  border: 1px solid #3a3a3a;
+  color: #fafafa;
+  font-family: inherit;
+  font-size: 0.85rem;
+  padding: 0.6rem 0.7rem;
+  border-radius: 6px;
+  resize: vertical;
+  min-height: 3rem;
+}
+.merge-input:focus { outline: none; border-color: #6aa84f; }
+.merge-body .btn.small { align-self: flex-start; }
+.merge-status {
+  font-size: 0.78rem;
+  line-height: 1.4;
+  min-height: 1em;
+}
+.merge-status.ok { color: #8bcf6f; }
+.merge-status.warn { color: #e0b64a; }
+
 /* ---------- results grid ---------- */
 .grid-wrap {
   overflow-x: auto;
