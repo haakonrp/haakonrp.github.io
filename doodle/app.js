@@ -436,6 +436,9 @@
     nameInput.type = "text";
     nameInput.maxLength = 40;
     nameField.appendChild(nameInput);
+    // How the date tapping works — placed right under the name.
+    nameField.appendChild(el("p", "hint",
+      "Then tap the dates below: once = yes, again = maybe, again = no."));
     view.appendChild(nameField);
 
     // Remember the last name used on this device for convenience.
@@ -475,8 +478,7 @@
     legend.innerHTML =
       '<span class="lg"><b class="c-yes">✓</b> yes</span>' +
       '<span class="lg"><b class="c-maybe">~</b> maybe</span>' +
-      '<span class="lg"><b class="c-no">·</b> no</span>' +
-      '<span class="lg dim">tap once = yes, again = maybe, again = no</span>';
+      '<span class="lg"><b class="c-no">·</b> no</span>';
     view.appendChild(legend);
 
     // Quick shortcut: mark every night Yes at once (or clear back to No when
