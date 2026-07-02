@@ -35,6 +35,7 @@
   // ---------- URL <-> state ----------
 
   // UTF-8 safe base64 (handles emoji / accents in names & titles).
+  // Kept for backward compatibility with older "#p=" links.
   function b64encode(str) {
     return btoa(unescape(encodeURIComponent(str)))
       .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
@@ -45,23 +46,41 @@
     return decodeURIComponent(escape(atob(b64)));
   }
 
+  const hasLZ = typeof LZString !== "undefined" &&
+    typeof LZString.compressToEncodedURIComponent === "function";
+
+  function normalizePoll(obj) {
+    if (!obj || !Array.isArray(obj.d)) return null;
+    obj.v = obj.v && typeof obj.v === "object" ? obj.v : {};
+    obj.t = typeof obj.t === "string" ? obj.t : "";
+    obj.y = Number.isInteger(obj.y) ? obj.y : new Date().getFullYear();
+    return obj;
+  }
+
   function readPoll() {
-    const m = location.hash.match(/[#&]p=([^&]+)/);
-    if (!m) return null;
-    try {
-      const obj = JSON.parse(b64decode(m[1]));
-      if (!obj || !Array.isArray(obj.d)) return null;
-      obj.v = obj.v && typeof obj.v === "object" ? obj.v : {};
-      obj.t = typeof obj.t === "string" ? obj.t : "";
-      obj.y = Number.isInteger(obj.y) ? obj.y : new Date().getFullYear();
-      return obj;
-    } catch {
-      return null;
+    const hash = location.hash;
+    // Preferred compact format: "#z=" (LZ-string compressed).
+    let m = hash.match(/[#&]z=([^&]+)/);
+    if (m && hasLZ) {
+      try {
+        const json = LZString.decompressFromEncodedURIComponent(m[1]);
+        if (json) return normalizePoll(JSON.parse(json));
+      } catch { /* fall through */ }
     }
+    // Legacy format: "#p=" (plain base64) — still readable for old links.
+    m = hash.match(/[#&]p=([^&]+)/);
+    if (m) {
+      try {
+        return normalizePoll(JSON.parse(b64decode(m[1])));
+      } catch { return null; }
+    }
+    return null;
   }
 
   function pollToHash(poll) {
-    return "#p=" + b64encode(JSON.stringify(poll));
+    const json = JSON.stringify(poll);
+    if (hasLZ) return "#z=" + LZString.compressToEncodedURIComponent(json);
+    return "#p=" + b64encode(json); // fallback if the lib failed to load
   }
 
   function pollUrl(poll) {
@@ -72,6 +91,35 @@
   function setHash(poll) {
     history.replaceState(null, "", pollToHash(poll));
   }
+
+  // ---------- persistence & "unshared changes" safety net ----------
+  // Everything lives in the URL, but people close tabs and lose links. So we
+  // also stash the latest poll locally: if they reopen the bare site we can
+  // offer to restore it, and we warn before leaving with unshared changes.
+  const LAST_POLL_KEY = "doodle-last-poll";
+
+  function saveLastPoll(poll) {
+    try { localStorage.setItem(LAST_POLL_KEY, JSON.stringify(poll)); } catch {}
+  }
+  function loadLastPoll() {
+    try {
+      const raw = localStorage.getItem(LAST_POLL_KEY);
+      return raw ? normalizePoll(JSON.parse(raw)) : null;
+    } catch { return null; }
+  }
+
+  // "dirty" = there are changes the user hasn't shared/copied yet.
+  let unsharedChanges = false;
+  function markDirty() { unsharedChanges = true; }
+  function markShared() { unsharedChanges = false; }
+
+  window.addEventListener("beforeunload", (e) => {
+    if (!unsharedChanges) return;
+    // Browsers show their own generic message; returnValue must be set.
+    e.preventDefault();
+    e.returnValue = "";
+    return "";
+  });
 
   // ---------- date helpers ----------
 
@@ -175,12 +223,36 @@
   // ===========================================================================
   // SCREEN: create / edit a poll
   // ===========================================================================
-  function renderCreate(existing) {
+  function renderCreate(existing, lastPoll) {
     clear();
     setHeader("doodle", "create a poll to find the best night");
 
     const def = defaultStart();
     const poll = existing || { t: "", y: def.year, d: [], v: {} };
+
+    // If we have a saved poll from a previous visit (and we're not editing an
+    // existing one), offer to jump back into it so a lost link isn't fatal.
+    if (!existing && lastPoll && Array.isArray(lastPoll.d) && lastPoll.d.length) {
+      const voters = Object.keys(lastPoll.v || {});
+      const restore = el("div", "restore");
+      const info = el("div", "restore-info");
+      info.appendChild(el("div", "restore-title",
+        lastPoll.t ? `Continue “${lastPoll.t}”?` : "Continue your last poll?"));
+      info.appendChild(el("div", "restore-sub",
+        `${lastPoll.d.length} night${lastPoll.d.length === 1 ? "" : "s"}` +
+        (voters.length ? ` · ${voters.length} vote${voters.length === 1 ? "" : "s"}` : "")));
+      restore.appendChild(info);
+      const openBtn = el("button", "btn small", "Open");
+      openBtn.addEventListener("click", () => {
+        setHash(lastPoll);
+        markShared();
+        const savedName = localStorage.getItem("doodle-name");
+        if (savedName && lastPoll.v[savedName]) renderResults(lastPoll);
+        else renderVote(lastPoll);
+      });
+      restore.appendChild(openBtn);
+      view.appendChild(restore);
+    }
 
     // --- title ---
     const titleField = el("div", "field");
@@ -308,6 +380,7 @@
       // Drop any votes that reference dates no longer on the poll.
       poll.v = {}; // fresh poll starts with no votes
       setHash(poll);
+      saveLastPoll(poll);
       renderVote(poll);
     });
     actions.appendChild(createBtn);
@@ -473,7 +546,9 @@
       poll.v[name] = myVotes;
       localStorage.setItem("doodle-name", name);
       setHash(poll);
-      renderResults(poll);
+      saveLastPoll(poll);   // recoverable if they close the tab
+      markDirty();          // remind them to share until they do
+      renderResults(poll, { justSaved: true });
     });
 
     const resultsBtn = el("button", "btn ghost", "See results");
@@ -549,13 +624,30 @@
   // ===========================================================================
   // SCREEN: results (grid of everyone's votes + best night)
   // ===========================================================================
-  function renderResults(poll) {
+  function renderResults(poll, opts) {
+    opts = opts || {};
     clear();
     const voters = Object.keys(poll.v);
     setHeader(poll.t || "doodle",
       voters.length
         ? `${voters.length} ${voters.length === 1 ? "person has" : "people have"} voted`
         : "no votes yet — be the first!");
+
+    // Just saved a vote? Remind them their answers only count once the link is
+    // shared (everything lives in the URL). Auto-copy so it's ready to paste.
+    if (opts.justSaved) {
+      const notice = el("div", "save-notice");
+      notice.appendChild(el("div", "save-notice-title", "Saved ✓ now share your link"));
+      notice.appendChild(el("div", "save-notice-sub",
+        "Your votes live in the link — send it back to the group so they're not lost."));
+      const copyBtn = el("button", "btn primary", "Copy & share link");
+      copyBtn.addEventListener("click", () => sharePoll(poll, copyBtn));
+      notice.appendChild(copyBtn);
+      view.appendChild(notice);
+
+      // Best-effort silent copy to clipboard right away (ignored if blocked).
+      navigator.clipboard && navigator.clipboard.writeText(pollUrl(poll)).catch(() => {});
+    }
 
     const len = poll.d.length;
 
@@ -695,6 +787,7 @@
     if (navigator.share) {
       try {
         await navigator.share(shareData);
+        markShared(); // they've sent it somewhere
       } catch (err) {
         // User dismissed the share sheet — do nothing, don't fall back.
         if (err && err.name === "AbortError") return;
@@ -710,10 +803,12 @@
   async function copyLink(url, btn) {
     try {
       await navigator.clipboard.writeText(url);
+      markShared(); // link is on their clipboard, safe to leave
       flash(btn, "Link copied ✓");
     } catch {
       // Last-resort fallback: show the URL for manual copy.
       prompt("Copy this link and share it:", url);
+      markShared();
     }
   }
 
@@ -730,9 +825,15 @@
   function route() {
     const poll = readPoll();
     if (!poll) {
-      renderCreate(null);
+      // No poll in the URL — fresh visit or a reopened tab. Offer to restore
+      // the last poll we saw on this device, if any.
+      renderCreate(null, loadLastPoll());
       return;
     }
+    // A poll came in via a link: it's already "out there", so remember it
+    // locally and clear any leave-warning.
+    saveLastPoll(poll);
+    markShared();
     // If this device hasn't voted yet, drop them on the voting screen;
     // otherwise show results. Either way both screens are reachable.
     const savedName = localStorage.getItem("doodle-name");
