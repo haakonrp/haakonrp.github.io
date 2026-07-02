@@ -2,6 +2,9 @@
 
 * { box-sizing: border-box; }
 
+/* Suppress double-tap-to-zoom and the tap delay on every element. */
+* { touch-action: manipulation; }
+
 html, body {
   margin: 0;
   padding: 0;

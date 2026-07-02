@@ -949,6 +949,20 @@
     else renderVote(poll);
   }
 
+  // ---------- Disable zoom (incl. pinch on iOS Safari) ----------
+  // iOS Safari ignores `user-scalable=no` / `maximum-scale`, so block the zoom
+  // gestures directly. `touch-action: manipulation` (CSS) already handles the
+  // double-tap on other browsers; this adds pinch-zoom prevention + a safety net.
+  (function preventZoom() {
+    ["gesturestart", "gesturechange", "gestureend"].forEach((ev) => {
+      document.addEventListener(ev, (e) => e.preventDefault(), { passive: false });
+    });
+    document.addEventListener("touchmove", (e) => {
+      if (e.touches.length > 1) e.preventDefault();
+    }, { passive: false });
+    document.addEventListener("dblclick", (e) => e.preventDefault(), { passive: false });
+  })();
+
   window.addEventListener("hashchange", route);
   route();
 })();
