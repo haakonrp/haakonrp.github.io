@@ -52,7 +52,7 @@ body {
 
 main {
   flex: 0 1 auto;
-  padding: 1rem 0;
+  padding: 1rem 0 0.25rem;
 }
 
 /* ---------- form fields ---------- */
@@ -246,6 +246,13 @@ button.cal-cell.sel {
 }
 
 /* results heat-map calendar */
+/* space out the stacked month calendars on the vote screen */
+.votecal {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
 .rescal {
   display: flex;
   flex-direction: column;
@@ -317,14 +324,45 @@ button.cal-cell.vc.v-maybe .vc-mark { color: #201700; }
 .vote-legend { flex-wrap: wrap; margin: 0.75rem 0 0; }
 .vote-legend .dim { color: #666; }
 
-/* compact "Mark all Yes / Clear all" shortcut under the legend */
+/* "Select all / Clear all" quick-action — full width at the top of the vote screen */
 .btn.bulk-btn {
-  display: inline-block;
-  width: auto;
-  margin: 0.75rem 0 0.25rem;
-  padding: 0.5rem 0.9rem;
-  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  width: 100%;
+  margin: 0 0 1rem;
+  padding: 0.7rem 0.95rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border-radius: 8px;
+  background: rgba(106, 168, 79, 0.14);
+  border: 1px solid rgba(106, 168, 79, 0.55);
+  color: #a6e08a;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
 }
+.btn.bulk-btn::before {
+  content: "✓";
+  font-weight: 700;
+  font-size: 0.9em;
+  line-height: 1;
+}
+.btn.bulk-btn:active {
+  background: rgba(106, 168, 79, 0.24);
+}
+/* When everything is already Yes, the button clears — show a neutral look. */
+.btn.bulk-btn.is-clear {
+  background: #2a2a2a;
+  border-color: #3a3a3a;
+  color: #aaa;
+}
+.btn.bulk-btn.is-clear::before {
+  content: "×";
+  font-size: 1.05em;
+}
+
+/* name field sits at the bottom of the vote screen, above the buttons */
+.name-field { margin-top: 1.25rem; margin-bottom: 0; }
 
 @media (max-width: 380px) {
   .cal-cell { font-size: 0.8rem; }
@@ -478,6 +516,8 @@ button.cal-cell.vc.v-maybe .vc-mark { color: #201700; }
   flex-direction: column;
   gap: 0.6rem;
 }
+/* the [hidden] attribute must win over display:flex above */
+.merge-body[hidden] { display: none; }
 .merge-hint {
   margin: 0;
   font-size: 0.76rem;
@@ -501,8 +541,8 @@ button.cal-cell.vc.v-maybe .vc-mark { color: #201700; }
 .merge-status {
   font-size: 0.78rem;
   line-height: 1.4;
-  min-height: 1em;
 }
+.merge-status:empty { display: none; }
 .merge-status.ok { color: #8bcf6f; }
 .merge-status.warn { color: #e0b64a; }
 
@@ -596,9 +636,20 @@ button.cal-cell.vc.v-maybe .vc-mark { color: #201700; }
 .grid td.sum {
   background: #242424;
   font-size: 0.85rem;
+  position: relative;   /* anchor the maybe suffix */
 }
 .grid .s-yes   { color: #8bcf6f; font-weight: 700; }
-.grid .s-maybe { color: #e6c34e; font-size: 0.72rem; margin-left: 0.15rem; }
+/* keep the yes-count centred with the rows above/below; the maybe "+n" sits
+   just after it without shifting the number off-centre */
+.grid .s-maybe {
+  color: #e6c34e;
+  font-size: 0.72rem;
+  position: absolute;
+  left: 50%;
+  margin-left: 0.6rem;
+  top: 50%;
+  transform: translateY(-50%);
+}
 
 /* legend under the grid */
 .legend {
@@ -622,6 +673,20 @@ button.cal-cell.vc.v-maybe .vc-mark { color: #201700; }
   gap: 0.5rem;
   padding-top: 0.5rem;
 }
+
+/* subtle "start a new poll" text link at the very bottom of results */
+.new-poll-link {
+  background: none;
+  border: none;
+  color: #666;
+  font-family: inherit;
+  font-size: 0.78rem;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0.75rem 0.5rem 0.25rem;
+  align-self: center;
+}
+.new-poll-link:active { color: #999; }
 
 .btn {
   width: 100%;

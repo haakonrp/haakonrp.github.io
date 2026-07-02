@@ -429,17 +429,19 @@
 
     const len = poll.d.length;
 
-    // --- name ---
-    const nameField = el("div", "field");
+    // --- "Select all" quick shortcut, full-width at the top ---
+    // Marks every date Yes at once, or clears back to No when all are Yes.
+    const bulkBtn = el("button", "btn ghost bulk-btn");
+    bulkBtn.type = "button";
+    view.appendChild(bulkBtn);
+
+    // --- name (field built now, appended at the BOTTOM below the calendar) ---
+    const nameField = el("div", "field name-field");
     nameField.appendChild(el("label", null, "Your name"));
     const nameInput = el("input");
     nameInput.type = "text";
     nameInput.maxLength = 40;
     nameField.appendChild(nameInput);
-    // How the date tapping works — placed right under the name.
-    nameField.appendChild(el("p", "hint",
-      "Then tap the dates below: once = yes, again = maybe, again = no."));
-    view.appendChild(nameField);
 
     // Remember the last name used on this device for convenience.
     const savedName = localStorage.getItem("doodle-name") || "";
@@ -469,7 +471,7 @@
       // leave the current selections untouched.
     });
 
-    // --- calendar: tap candidate nights to cycle Yes / Maybe / No ---
+    // --- calendar: tap candidate dates to cycle Yes / Maybe / No ---
     const calWrap = el("div", "votecal");
     view.appendChild(calWrap);
 
@@ -478,18 +480,17 @@
     legend.innerHTML =
       '<span class="lg"><b class="c-yes">✓</b> yes</span>' +
       '<span class="lg"><b class="c-maybe">~</b> maybe</span>' +
-      '<span class="lg"><b class="c-no">·</b> no</span>';
+      '<span class="lg"><b class="c-no">✗</b> no</span>';
     view.appendChild(legend);
 
-    // Quick shortcut: mark every night Yes at once (or clear back to No when
-    // everything is already Yes). Handy for "I'm free most nights" voters.
-    const bulkBtn = el("button", "btn ghost bulk-btn");
-    bulkBtn.type = "button";
-    view.appendChild(bulkBtn);
+    // Name goes at the bottom, right above the Save / See results buttons.
+    view.appendChild(nameField);
 
     const allYes = () => len > 0 && myVotes === "2".repeat(len);
     function updateBulkBtn() {
-      bulkBtn.textContent = allYes() ? "Clear all" : "Mark all Yes";
+      const clear = allYes();
+      bulkBtn.textContent = clear ? "Clear all" : "Select all";
+      bulkBtn.classList.toggle("is-clear", clear);
     }
     bulkBtn.addEventListener("click", () => {
       myVotes = (allYes() ? "0" : "2").repeat(len);
@@ -519,7 +520,7 @@
       cell.classList.remove("v-yes", "v-maybe", "v-no");
       cell.classList.add(v === YES ? "v-yes" : v === MAYBE ? "v-maybe" : "v-no");
       const mark = cell.querySelector(".vc-mark");
-      mark.textContent = v === YES ? "✓" : v === MAYBE ? "~" : "·";
+      mark.textContent = v === YES ? "✓" : v === MAYBE ? "~" : "✗";
     }
     function paintRows() { // (name kept: called by the name-input handler)
       for (let i = 0; i < len; i++) paintCell(i);
@@ -570,7 +571,7 @@
     drawVoteCalendars();
 
     // --- actions ---
-    const saveBtn = el("button", "btn primary", "Save my availability");
+    const saveBtn = el("button", "btn primary", "Save dates");
     saveBtn.addEventListener("click", () => {
       const name = nameInput.value.trim();
       if (!name) {
@@ -590,8 +591,8 @@
     const resultsBtn = el("button", "btn ghost", "See results");
     resultsBtn.addEventListener("click", () => renderResults(poll));
 
-    actions.appendChild(resultsBtn);
     actions.appendChild(saveBtn);
+    actions.appendChild(resultsBtn);
   }
 
   // Availability heat-map calendar for the results screen.
@@ -763,7 +764,7 @@
       for (const name of voters) {
         const v = voteAt(poll.v[name], i);
         const td = el("td", "cell " + (v === YES ? "c-yes" : v === MAYBE ? "c-maybe" : "c-no"));
-        td.textContent = v === YES ? "✓" : v === MAYBE ? "~" : "·";
+        td.textContent = v === YES ? "✓" : v === MAYBE ? "~" : "✗";
         tr.appendChild(td);
       }
 
@@ -788,7 +789,7 @@
       legend.innerHTML =
         '<span class="lg"><b class="c-yes">✓</b> yes</span>' +
         '<span class="lg"><b class="c-maybe">~</b> maybe</span>' +
-        '<span class="lg"><b class="c-no">·</b> no</span>';
+        '<span class="lg"><b class="c-no">✗</b> no</span>';
       view.appendChild(legend);
     }
 
@@ -796,11 +797,20 @@
     const shareBtn = el("button", "btn primary", "Share poll link");
     shareBtn.addEventListener("click", () => sharePoll(poll, shareBtn));
 
-    const voteBtn = el("button", "btn", "Add / edit my vote");
+    const voteBtn = el("button", "btn", "Edit dates");
     voteBtn.addEventListener("click", () => renderVote(poll));
 
-    const newBtn = el("button", "btn ghost", "New poll");
-    newBtn.addEventListener("click", () => {
+    actions.appendChild(voteBtn);
+    actions.appendChild(shareBtn);
+
+    // Combine links others sent back — placed below the Share button.
+    renderMergeBox(poll);
+
+    // "New poll" is rarely needed and destructive, so tuck it away as a small
+    // text link at the very bottom.
+    const newLink = el("button", "new-poll-link", "Start a new poll");
+    newLink.type = "button";
+    newLink.addEventListener("click", () => {
       if (!confirm("Start a new poll? This clears the current one from the screen. " +
         "Make sure you've shared this poll's link first — you can reopen it from that link.")) {
         return;
@@ -808,13 +818,7 @@
       history.replaceState(null, "", location.pathname);
       renderCreate(null);
     });
-
-    actions.appendChild(newBtn);
-    actions.appendChild(voteBtn);
-    actions.appendChild(shareBtn);
-
-    // Combine links others sent back — placed below the Share button.
-    renderMergeBox(poll);
+    actions.appendChild(newLink);
   }
 
   // Collapsible box for folding in links other people sent back.
@@ -846,7 +850,12 @@
     toggle.addEventListener("click", () => {
       body.hidden = !body.hidden;
       toggle.classList.toggle("open", !body.hidden);
-      if (!body.hidden) ta.focus();
+      if (!body.hidden) {
+        ta.focus();
+        // The box sits at the very bottom — scroll it into view so the newly
+        // revealed textarea/button aren't left off-screen.
+        setTimeout(() => box.scrollIntoView({ behavior: "smooth", block: "nearest" }), 50);
+      }
     });
 
     go.addEventListener("click", () => {
