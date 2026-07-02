@@ -169,17 +169,10 @@
     return new Date(year, mo - 1, da);
   }
 
-  // Label for an overnight stay: the night you sleep + the morning after.
-  // e.g. "Fri 15 → Sat 16 Aug"
-  function nightLabel(year, md) {
-    const start = toDate(year, md);
-    const end = new Date(start);
-    end.setDate(end.getDate() + 1);
-    const sameMonth = start.getMonth() === end.getMonth();
-    const startTxt = `${WEEKDAYS[start.getDay()]} ${start.getDate()}` +
-      (sameMonth ? "" : ` ${MONTHS[start.getMonth()]}`);
-    const endTxt = `${WEEKDAYS[end.getDay()]} ${end.getDate()} ${MONTHS[end.getMonth()]}`;
-    return `${startTxt} → ${endTxt}`;
+  // Label for a single date, e.g. "Fri 15 Aug".
+  function dateLabel(year, md) {
+    const d = toDate(year, md);
+    return `${WEEKDAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`;
   }
 
   function shortLabel(year, md) {
@@ -265,7 +258,7 @@
   // ===========================================================================
   function renderCreate(existing, lastPoll) {
     clear();
-    setHeader("doodle", "create a poll to find the best night");
+    setHeader("doodle", "create a poll to find the best date");
 
     const def = defaultStart();
     const poll = existing || { t: "", y: def.year, d: [], v: {} };
@@ -279,7 +272,7 @@
       info.appendChild(el("div", "restore-title",
         lastPoll.t ? `Continue “${lastPoll.t}”?` : "Continue your last poll?"));
       info.appendChild(el("div", "restore-sub",
-        `${lastPoll.d.length} night${lastPoll.d.length === 1 ? "" : "s"}` +
+        `${lastPoll.d.length} date${lastPoll.d.length === 1 ? "" : "s"}` +
         (voters.length ? ` · ${voters.length} vote${voters.length === 1 ? "" : "s"}` : "")));
       restore.appendChild(info);
       const openBtn = el("button", "btn small", "Open");
@@ -304,11 +297,11 @@
     titleField.appendChild(titleInput);
     view.appendChild(titleField);
 
-    // --- calendar: tap days to add/remove candidate nights ---
+    // --- calendar: tap days to add/remove candidate dates ---
     const calField = el("div", "field");
-    calField.appendChild(el("label", null, "Pick the nights — tap a day"));
+    calField.appendChild(el("label", null, "Pick the dates — tap a day"));
 
-    // The month currently shown in the picker: the poll's first night if any,
+    // The month currently shown in the picker: the poll's first date if any,
     // otherwise the current month.
     let viewMonth = poll.d.length
       ? toDate(poll.y, poll.d[0]).getMonth()
@@ -317,8 +310,6 @@
 
     const cal = el("div", "cal");
     calField.appendChild(cal);
-    calField.appendChild(el("p", "hint",
-      "Each option is one night — you sleep over and head back the next morning."));
     view.appendChild(calField);
 
     // "Nights on the poll" summary chips (read-only list, remove via calendar too)
@@ -397,13 +388,13 @@
     function drawSummary() {
       summary.innerHTML = "";
       if (!poll.d.length) {
-        summary.appendChild(el("p", "empty", "No nights picked yet — tap days above."));
+        summary.appendChild(el("p", "empty", "No dates picked yet — tap days above."));
         return;
       }
-      // Selected nights are shown directly on the calendar (green days);
+      // Selected dates are shown directly on the calendar (green days);
       // just show a small count here.
       summary.appendChild(el("div", "cal-summary-count",
-        `${poll.d.length} night${poll.d.length === 1 ? "" : "s"} selected`));
+        `${poll.d.length} date${poll.d.length === 1 ? "" : "s"} selected`));
     }
 
     drawCalendar();
@@ -560,7 +551,7 @@
             cell.type = "button";
             cell.appendChild(el("span", "cal-day", String(day)));
             cell.appendChild(el("span", "vc-mark"));
-            cell.title = nightLabel(poll.y, md);
+            cell.title = dateLabel(poll.y, md);
             cell.addEventListener("click", () => cycle(i));
             cellByIdx[i] = cell;
             grid.appendChild(cell);
@@ -650,7 +641,7 @@
             tag.textContent = t.maybe ? `${t.yes}·${t.maybe}~` : `${t.yes}`;
             cell.appendChild(tag);
           }
-          cell.title = `${nightLabel(poll.y, md)}\n${t.yes} yes` +
+          cell.title = `${dateLabel(poll.y, md)}\n${t.yes} yes` +
             (t.maybe ? `, ${t.maybe} maybe` : "") + `, ${t.no} no`;
           grid.appendChild(cell);
         }
@@ -721,10 +712,10 @@
       const idxs = [...bestIdx];
       const single = idxs.length === 1;
       banner.appendChild(el("div", "winner-tag",
-        single ? "Best night" : `Top nights · ${idxs.length} tied`));
+        single ? "Best date" : `Top dates · ${idxs.length} tied`));
       // Don't dump a huge list — show a few, then summarise the rest.
       const MAX = 3;
-      const shown = idxs.slice(0, MAX).map(i => nightLabel(poll.y, poll.d[i]));
+      const shown = idxs.slice(0, MAX).map(i => dateLabel(poll.y, poll.d[i]));
       let text = shown.join("  ·  ");
       if (idxs.length > MAX) text += `  ·  +${idxs.length - MAX} more`;
       banner.appendChild(el("div", "winner-date", text));
@@ -741,7 +732,7 @@
     // header row: names
     const thead = el("thead");
     const hr = el("tr");
-    hr.appendChild(el("th", "corner", "Night"));
+    hr.appendChild(el("th", "corner", "Date"));
     for (const name of voters) {
       const th = el("th", "name");
       th.appendChild(el("span", null, name));
