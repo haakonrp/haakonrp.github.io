@@ -588,7 +588,7 @@
       renderResults(poll, { justSaved: true });
     });
 
-    const resultsBtn = el("button", "btn ghost", "See results");
+    const resultsBtn = el("button", "btn", "See results");
     resultsBtn.addEventListener("click", () => renderResults(poll));
 
     actions.appendChild(saveBtn);
@@ -644,7 +644,8 @@
           // little tally under the number
           if (voterCount) {
             const tag = el("span", "cal-tag");
-            tag.textContent = t.maybe ? `${t.yes}·${t.maybe}~` : `${t.yes}`;
+            tag.appendChild(el("span", "t-yes", String(t.yes)));
+            if (t.maybe) tag.appendChild(el("span", "t-maybe", ` (~${t.maybe})`));
             cell.appendChild(tag);
           }
           cell.title = `${dateLabel(poll.y, md)}\n${t.yes} yes` +
@@ -767,7 +768,7 @@
       const t = tally[i];
       const sum = el("td", "sum");
       sum.appendChild(el("span", "s-yes", String(t.yes)));
-      if (t.maybe) sum.appendChild(el("span", "s-maybe", `+${t.maybe}`));
+      if (t.maybe) sum.appendChild(el("span", "s-maybe", ` (~${t.maybe})`));
       tr.appendChild(sum);
 
       for (const name of voters) {
@@ -799,11 +800,11 @@
     const shareBtn = el("button", "btn primary", "Share poll link");
     shareBtn.addEventListener("click", () => sharePoll(poll, shareBtn));
 
-    const voteBtn = el("button", "btn", "Edit dates");
+    const voteBtn = el("button", "btn", "Edit my dates");
     voteBtn.addEventListener("click", () => renderVote(poll));
 
-    actions.appendChild(voteBtn);
     actions.appendChild(shareBtn);
+    actions.appendChild(voteBtn);
 
     // Combine links others sent back — placed below the Share button.
     renderMergeBox(poll);
