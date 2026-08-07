@@ -3174,5 +3174,13 @@
     "visitorsIn": 1167,
     "visitorsOut": 733,
     "capacityStatus": "good"
+  },
+  {
+    "timestamp": "2026-08-07T15:03:21Z",
+    "datelong": 1786115055903,
+    "current": 391,
+    "visitorsIn": 1340,
+    "visitorsOut": 949,
+    "capacityStatus": "good"
   }
 ]
