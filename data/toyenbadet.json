@@ -5774,5 +5774,13 @@
     "visitorsIn": 682,
     "visitorsOut": 482,
     "capacityStatus": "good"
+  },
+  {
+    "timestamp": "2026-11-17T14:15:49Z",
+    "datelong": 1794924968991,
+    "current": 175,
+    "visitorsIn": 545,
+    "visitorsOut": 370,
+    "capacityStatus": "good"
   }
 ]
